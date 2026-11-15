@@ -8,14 +8,15 @@ from pathlib import Path
 
 from PyQt6.QtCore import QFileSystemWatcher, QLockFile, QTimer, Qt
 from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPen, QPixmap
-from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu, QSystemTrayIcon
 
 ESTADO = Path(f"/tmp/organizador-{os.getuid()}")
 INFO_FILE = ESTADO / "projeto"
 PID_FILE = ESTADO / "monitor.pid"
 NOTIFY_FILE = ESTADO / "notificacao"
 LOCK_FILE = ESTADO / "bandeja.lock"
-TRABALHO = Path.home() / "Trabalho"
+PADRAO = Path.home() / "Trabalho"
+CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "organizador.conf"
 ATALHOS = ("🛠️ SALVAR PROJETO", "✅ SALVAR EXPORT")
 CLIENTES = (("Premier League", "1"), ("Orlando Magic", "2"), ("Jr. NBA Brasil", "3"))
 
@@ -28,6 +29,15 @@ def notificar(titulo, texto="", icone="dialog-information"):
         )
     except OSError:
         pass
+
+
+def pasta_mae():
+    """Pasta mãe dos projetos: a escolhida no menu, ou ~/Trabalho se não houver (ou sumiu)."""
+    try:
+        texto = CONFIG.read_text(encoding="utf-8").strip()
+    except OSError:
+        return PADRAO
+    return Path(texto) if texto and Path(texto).is_dir() else PADRAO
 
 
 def monitor_vivo():
@@ -44,7 +54,7 @@ def limpar_estado_orfao():
     for arquivo in (PID_FILE, INFO_FILE, NOTIFY_FILE):
         arquivo.unlink(missing_ok=True)
     for nome in ATALHOS:
-        atalho = TRABALHO / nome
+        atalho = pasta_mae() / nome
         if atalho.is_symlink():
             atalho.unlink()
 
@@ -134,6 +144,7 @@ class Bandeja(QSystemTrayIcon):
         self.menu.addSeparator()
         if self.projeto:
             self._acao("Parar monitoramento", lambda: self.executar("parar"), "media-playback-stop")
+        self._acao("Pasta mãe dos projetos", self.trocar_pasta, "folder")
         self._acao("Sair da bandeja", QApplication.quit, "application-exit")
 
     def ao_clicar(self, motivo):
@@ -143,7 +154,7 @@ class Bandeja(QSystemTrayIcon):
             self.abrir_pasta()
 
     def abrir_pasta(self):
-        pasta = TRABALHO / self.projeto
+        pasta = pasta_mae() / self.projeto
         if not pasta.is_dir():
             notificar("Pasta não encontrada", str(pasta), "dialog-warning")
             return
@@ -152,6 +163,26 @@ class Bandeja(QSystemTrayIcon):
             if k not in ("LD_LIBRARY_PATH", "QT_PLUGIN_PATH", "QML2_IMPORT_PATH")
         }
         subprocess.Popen(["xdg-open", str(pasta)], env=ambiente, start_new_session=True)
+
+    def trocar_pasta(self):
+        if self.projeto:
+            notificar(
+                "Pare o monitoramento antes",
+                'Há um projeto ativo. Use "Parar monitoramento" e troque a pasta depois.',
+                "dialog-warning",
+            )
+            return
+        atual = pasta_mae()
+        escolhida = QFileDialog.getExistingDirectory(None, "Pasta mãe dos projetos", str(atual))
+        if not escolhida or Path(escolhida) == atual:
+            return
+        try:
+            CONFIG.parent.mkdir(parents=True, exist_ok=True)
+            CONFIG.write_text(escolhida + "\n", encoding="utf-8")
+        except OSError:
+            notificar("Não consegui salvar a pasta", str(CONFIG), "dialog-error")
+            return
+        notificar("Pasta mãe alterada", escolhida, "folder")
 
     def executar(self, arg):
         script = localizar_script()

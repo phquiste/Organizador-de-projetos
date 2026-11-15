@@ -2,7 +2,18 @@
 # Uso: organizador.sh {1|2|3|parar}
 # Move os downloads para a pasta do projeto ativo dentro de ~/Trabalho.
 
+# Pasta mãe dos projetos: ~/Trabalho, ou a escolhida no menu da bandeja (guardada no arquivo abaixo)
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/organizador.conf"
 TRABALHO="$HOME/Trabalho"
+PASTA_INDISPONIVEL=""
+if [ -r "$CONFIG" ]; then
+    read -r PASTA_ESCOLHIDA < "$CONFIG"
+    if [ -n "$PASTA_ESCOLHIDA" ] && [ -d "$PASTA_ESCOLHIDA" ]; then
+        TRABALHO="${PASTA_ESCOLHIDA%/}"
+    else
+        PASTA_INDISPONIVEL="$PASTA_ESCOLHIDA"
+    fi
+fi
 ESTADO="/tmp/organizador-$UID"
 PID_FILE="$ESTADO/monitor.pid"
 INFO_FILE="$ESTADO/projeto"
@@ -131,6 +142,9 @@ if [ ! -d "$DOWNLOADS" ] || [ "$DOWNLOADS" = "$HOME" ]; then
     DOWNLOADS="$HOME/Downloads"
 fi
 
+if [ -n "$PASTA_INDISPONIVEL" ]; then
+    notificar -i dialog-warning "Pasta mãe não encontrada" "Usando ~/Trabalho. A pasta escolhida era: $PASTA_INDISPONIVEL"
+fi
 mkdir -p "$TRABALHO"
 # GNOME usa a janela nativa (GTK4/libadwaita); o resto usa Qt.
 # Código 2 = faltam as bibliotecas da janela, então tenta a próxima.
@@ -170,10 +184,8 @@ case "$TIPO" in
 esac
 
 DESTINO="$PROJETO"
-ONDE="pasta do projeto"
 if [ "$CLIENTE" != "Orlando Magic" ] && [ -d "$PROJETO/01_Brutos" ]; then
     DESTINO="$PROJETO/01_Brutos"
-    ONDE="01_Brutos"
 fi
 
 parar_monitor
@@ -190,7 +202,7 @@ fi
 basename "$PROJETO" > "$INFO_FILE.tmp"
 mv -f "$INFO_FILE.tmp" "$INFO_FILE"
 
-id=$(notificar -p -t 5000 -i folder "Projeto ativo: $CLIENTE" "$(basename "$PROJETO")"$'\n'"Downloads em: $ONDE")
+id=$(notificar -p -t 5000 -i folder "Monitoramento ativo" "$(basename "$PROJETO")")
 [ -n "$id" ] && echo "$id" > "$NOTIFY_FILE"
 
 monitorar >/dev/null 2>&1 &

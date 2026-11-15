@@ -9,7 +9,7 @@ Ao apertar o atalho de um cliente, abre uma janela para criar um projeto novo ou
 - **Premier League e Jr. NBA Brasil:** o projeto ganha `01_Brutos` (downloads, movidos sozinhos assim que terminam), `02_Projetos` e `03_Exports`.
 - **Orlando Magic:** pasta única, sem subpastas. Tudo vai para a raiz do projeto.
 
-Enquanto o projeto está ativo, aparecem direto em `~/Trabalho/` os atalhos `🛠️ SALVAR PROJETO` e `✅ SALVAR EXPORT` (no Orlando Magic, só o `✅ SALVAR EXPORT`). Eles somem quando o monitor para.
+Os projetos ficam em `~/Trabalho/` (a "pasta mãe"), a menos que você escolha outra (veja **Trocar a pasta mãe**). Enquanto o projeto está ativo, aparecem direto na pasta mãe os atalhos `🛠️ SALVAR PROJETO` e `✅ SALVAR EXPORT` (no Orlando Magic, só o `✅ SALVAR EXPORT`). Eles somem quando o monitor para.
 
 Projeto retomado não é alterado: nenhuma pasta é criada ou recriada. Se a `01_Brutos` não existir mais, os downloads vão para a raiz do projeto. Um atalho só é criado se a pasta de destino existir.
 
@@ -56,6 +56,19 @@ Use estes comandos exatamente como estão:
 **KDE:** Configurações do Sistema → Atalhos → Adicionar novo → Comando ou script.
 
 **Outros ambientes:** procure em Configurações → Teclado a opção de atalho personalizado.
+
+## Trocar a pasta mãe
+
+Por padrão os projetos ficam em `~/Trabalho`. Para usar outra pasta (um HD externo, por exemplo):
+
+1. Clique na bolinha e escolha **Pasta mãe dos projetos**.
+2. Escolha a pasta e confirme.
+
+A escolha vale para todos os projetos seguintes e só muda quando você trocar de novo. Para voltar ao padrão, escolha `~/Trabalho` outra vez.
+
+- Só dá para trocar com o monitoramento parado. Com um projeto ativo, o programa avisa e pede para parar antes.
+- Projetos antigos continuam na pasta anterior. A lista "Retomar projeto" mostra só os da pasta mãe atual.
+- Se a pasta escolhida sumir (HD desconectado, por exemplo), o programa avisa e usa `~/Trabalho` até ela voltar.
 
 ## Bandeja no GNOME
 
@@ -105,7 +118,8 @@ Tudo que o programa coloca no seu computador, para você saber onde está cada c
 | `~/.config/autostart/` | `organizador-tray.desktop` | Faz a bolinha abrir sozinha ao ligar o PC |
 | `~/.local/share/applications/` | `local.organizador.dialogo.desktop` | Dá nome e ícone à janela no GNOME (só estético) |
 | `/tmp/organizador-<número>/` | `monitor.pid`, `projeto`, `notificacao`, `bandeja.lock` | Bilhetes temporários entre as peças. Somem ao reiniciar o PC |
-| `~/Trabalho/` | `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT` | Atalhos que só existem enquanto um projeto está ativo |
+| `~/.config/` | `organizador.conf` | Guarda a pasta mãe escolhida. Só existe se você trocar a pasta |
+| Pasta mãe (`~/Trabalho/` por padrão) | `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT` | Atalhos que só existem enquanto um projeto está ativo |
 
 Fora disso:
 
@@ -122,7 +136,8 @@ Fora disso:
    rm ~/.local/bin/organizador*
    rm ~/.config/autostart/organizador-tray.desktop
    rm ~/.local/share/applications/local.organizador.dialogo.desktop
+   rm -f ~/.config/organizador.conf
    rm -rf /tmp/organizador-*
    ```
 
-Seus projetos em `~/Trabalho/` continuam lá. Se sobrar algum atalho `🛠️ SALVAR PROJETO` ou `✅ SALVAR EXPORT` em `~/Trabalho/`, pode apagar: são só links.
+Seus projetos continuam na pasta mãe. Se sobrar algum atalho `🛠️ SALVAR PROJETO` ou `✅ SALVAR EXPORT` nela, pode apagar: são só links.

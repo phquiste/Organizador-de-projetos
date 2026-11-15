@@ -12,7 +12,7 @@ try:
     from PyQt6.QtCore import Qt
     from PyQt6.QtWidgets import (
         QApplication, QDialog, QDialogButtonBox, QLabel,
-        QLineEdit, QListWidget, QVBoxLayout,
+        QLineEdit, QListWidget, QListWidgetItem, QVBoxLayout,
     )
 except ImportError:
     sys.exit(2)
@@ -67,18 +67,18 @@ def main():
     app = QApplication(sys.argv)
     aplicar_esquema(app)
     dialogo = QDialog()
-    dialogo.setWindowTitle("Organizador")
+    dialogo.setWindowTitle(cliente)
     dialogo.setMinimumWidth(440)
 
     lista = QListWidget()
-    lista.addItems(projetos)
+    for pasta in projetos:
+        data, _, resto = pasta.partition(" - ")
+        nome = resto.partition(" - ")[2] or pasta
+        item = QListWidgetItem(f"{nome}\n{data}")
+        item.setData(Qt.ItemDataRole.UserRole, pasta)
+        lista.addItem(item)
     campo = Campo(lista)
-    campo.setPlaceholderText("Ex: Jogo 1 vs Celtics")
-
-    titulo = QLabel(f"<b>{cliente}</b>")
-    fonte = titulo.font()
-    fonte.setPointSizeF(fonte.pointSizeF() * 1.3)
-    titulo.setFont(fonte)
+    campo.setPlaceholderText("Nome do projeto")
 
     botoes = QDialogButtonBox(
         QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -88,11 +88,10 @@ def main():
 
     layout = QVBoxLayout(dialogo)
     layout.setSpacing(8)
-    layout.addWidget(titulo)
-    layout.addWidget(QLabel("Novo projeto:"))
+    layout.addWidget(QLabel("Novo projeto"))
     layout.addWidget(campo)
     if projetos:
-        layout.addWidget(QLabel("Ou retome um existente:"))
+        layout.addWidget(QLabel("Retomar projeto"))
         layout.addWidget(lista)
     layout.addWidget(botoes)
     lista.setVisible(bool(projetos))
@@ -104,7 +103,7 @@ def main():
         if nome:
             escolha[:] = ["NOVO", nome]
         elif lista.currentItem():
-            escolha[:] = ["EXISTENTE", lista.currentItem().text()]
+            escolha[:] = ["EXISTENTE", lista.currentItem().data(Qt.ItemDataRole.UserRole)]
         else:
             return
         dialogo.accept()
