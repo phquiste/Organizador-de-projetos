@@ -1,227 +1,181 @@
 #!/usr/bin/env python3
+"""Ícone de bandeja do Organizador (GNOME, KDE, XFCE...)."""
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import QFileSystemWatcher, QLockFile, Qt
+from PyQt6.QtCore import QFileSystemWatcher, QLockFile, QTimer, Qt
 from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
-TMP_DIR = "/tmp"
-INFO_FILE = "/tmp/projeto_ativo.txt"
-PID_FILE = "/tmp/monitor_downloads.pid"
-NOTIFY_ID_FILE = "/tmp/notify_id.txt"
-LOCK_FILE = "/tmp/organizador_tray.lock"
-TRABALHO_DIR = Path.home() / "Trabalho"
-SCRIPT_PATH = Path.home() / ".local/bin/organizador.sh"
-
-CLIENTES = (
-    ("Premier League", "1"),
-    ("Orlando Magic", "2"),
-    ("Jr. NBA Brasil", "3"),
-)
+ESTADO = Path(f"/tmp/organizador-{os.getuid()}")
+INFO_FILE = ESTADO / "projeto"
+PID_FILE = ESTADO / "monitor.pid"
+NOTIFY_FILE = ESTADO / "notificacao"
+LOCK_FILE = ESTADO / "bandeja.lock"
+TRABALHO = Path.home() / "Trabalho"
+ATALHOS = ("🛠️ SALVAR PROJETO", "✅ SALVAR EXPORT")
+CLIENTES = (("Premier League", "1"), ("Orlando Magic", "2"), ("Jr. NBA Brasil", "3"))
 
 
-def obter_desktop_dir() -> Path:
+def notificar(titulo, texto="", icone="dialog-information"):
     try:
-        res = subprocess.run(
-            ["xdg-user-dir", "DESKTOP"],
-            capture_output=True,
-            text=True,
-            check=False,
+        subprocess.Popen(
+            ["notify-send", "-a", "Organizador", "-i", icone, titulo, texto],
+            start_new_session=True,
         )
-        caminho = Path(res.stdout.strip())
-        if res.stdout.strip() and caminho.is_dir():
-            return caminho
     except OSError:
         pass
 
-    for candidato in (Path.home() / "Área de trabalho", Path.home() / "Desktop"):
-        if candidato.is_dir():
-            return candidato
-    return Path.home() / "Desktop"
+
+def monitor_vivo():
+    try:
+        pid = PID_FILE.read_text().strip()
+        return pid.isdigit() and b"organizador.sh" in Path(f"/proc/{pid}/cmdline").read_bytes()
+    except OSError:
+        return False
 
 
 def limpar_estado_orfao():
-    pid_path = Path(PID_FILE)
-    monitor_vivo = False
-
-    if pid_path.is_file():
-        try:
-            pid = pid_path.read_text(encoding="utf-8").strip()
-            cmdline = Path(f"/proc/{pid}/cmdline")
-            if pid.isdigit() and cmdline.is_file():
-                conteudo = cmdline.read_bytes()
-                if b"organizador.sh" in conteudo:
-                    monitor_vivo = True
-        except OSError:
-            pass
-
-    if not monitor_vivo:
-        for arq in (PID_FILE, INFO_FILE, NOTIFY_ID_FILE):
-            Path(arq).unlink(missing_ok=True)
-
-        desktop = obter_desktop_dir()
-        for atalho in ("🛠️ SALVAR PROJETO", "✅ SALVAR EXPORT"):
-            caminho_atalho = desktop / atalho
-            if caminho_atalho.is_symlink() or caminho_atalho.exists():
-                caminho_atalho.unlink(missing_ok=True)
+    if monitor_vivo():
+        return
+    for arquivo in (PID_FILE, INFO_FILE, NOTIFY_FILE):
+        arquivo.unlink(missing_ok=True)
+    for nome in ATALHOS:
+        atalho = TRABALHO / nome
+        if atalho.is_symlink():
+            atalho.unlink()
 
 
-def criar_icone_status(cor_hex: str) -> QIcon:
-    pixmap = QPixmap(64, 64)
+def icone_status(cor):
+    pixmap = QPixmap(128, 128)
     pixmap.fill(Qt.GlobalColor.transparent)
-
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    painter.setPen(QPen(QColor("#ffffff"), 4))
-    painter.setBrush(QColor(cor_hex))
-    painter.drawEllipse(8, 8, 48, 48)
-    painter.end()
-
+    pintor = QPainter(pixmap)
+    pintor.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pintor.setPen(QPen(QColor(cor).darker(130), 6))
+    pintor.setBrush(QColor(cor))
+    pintor.drawEllipse(16, 16, 96, 96)
+    pintor.end()
     return QIcon(pixmap)
 
 
-class TrayMonitor(QSystemTrayIcon):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+def localizar_script():
+    candidatos = [Path(__file__).resolve().with_name("organizador.sh")]
+    if no_path := shutil.which("organizador.sh"):
+        candidatos.append(Path(no_path))
+    return next((c for c in candidatos if c.is_file()), None)
 
-        self.projeto_atual: str | None = None
-        self.icon_ocioso = criar_icone_status("#6c757d")
-        self.icon_ativo = criar_icone_status("#28a745")
 
-        action_sair = QAction("Sair da Bandeja", self)
-        action_sair.triggered.connect(QApplication.quit)
+def avisar_se_sem_bandeja():
+    if not QSystemTrayIcon.isSystemTrayAvailable():
+        notificar(
+            "Bandeja indisponível",
+            "No GNOME, ative a extensão AppIndicator. Os atalhos de teclado continuam funcionando.",
+            "dialog-warning",
+        )
 
-        # Menu Ativo
-        self.menu_ativo = QMenu()
-        self.action_status = QAction("", self)
-        self.action_status.setEnabled(False)
-        self.menu_ativo.addAction(self.action_status)
 
-        action_abrir = QAction("📂 Abrir Pasta do Projeto", self)
-        action_abrir.triggered.connect(self.abrir_pasta_projeto)
-        self.menu_ativo.addAction(action_abrir)
+class Bandeja(QSystemTrayIcon):
+    def __init__(self):
+        super().__init__()
+        self.icone_ocioso = icone_status("#8b949e")
+        self.icone_ativo = icone_status("#2ea44f")
 
-        self.menu_ativo.addSeparator()
-        self._popular_clientes(self.menu_ativo.addMenu("Trocar Projeto"))
-        self.menu_ativo.addSeparator()
+        # Um único menu, remontado a cada mudança. Trocar de menu com o ícone
+        # visível não é repassado pelo GNOME, e o menu ficava desatualizado.
+        self.menu = QMenu()
+        self.setContextMenu(self.menu)
+        self.activated.connect(self.ao_clicar)
 
-        action_parar = QAction("⏹️ Parar Monitoramento", self)
-        action_parar.triggered.connect(self.parar_projeto)
-        self.menu_ativo.addAction(action_parar)
-        self.menu_ativo.addAction(action_sair)
+        # Observa só a pasta de estado: ela quase nunca muda, então não gasta CPU à toa
+        self.observador = QFileSystemWatcher([str(ESTADO)], self)
+        self.observador.directoryChanged.connect(self.atualizar)
 
-        # Menu Ocioso
-        self.menu_ocioso = QMenu()
-        self._popular_clientes(self.menu_ocioso)
-        self.menu_ocioso.addSeparator()
-        self.menu_ocioso.addAction(action_sair)
+        self.projeto = self._ler_projeto()
+        self._aplicar()
 
-        self.activated.connect(self.ao_clicar_icone)
+    @staticmethod
+    def _ler_projeto():
+        try:
+            return INFO_FILE.read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
 
-        self.watcher = QFileSystemWatcher(self)
-        self.watcher.directoryChanged.connect(self.ao_mudar_tmp)
-        self.watcher.fileChanged.connect(self.atualizar_estado)
-        self._configurar_watcher()
+    def atualizar(self):
+        projeto = self._ler_projeto()
+        if projeto != self.projeto:
+            self.projeto = projeto
+            self._aplicar()
 
-        self.atualizar_estado()
+    def _acao(self, texto, funcao, icone=None, ativa=True):
+        acao = self.menu.addAction(texto)
+        if icone:
+            acao.setIcon(QIcon.fromTheme(icone))
+        acao.setEnabled(ativa)
+        acao.triggered.connect(lambda _=False: funcao())
+        return acao
 
-    def _popular_clientes(self, menu: QMenu):
-        for nome, arg in CLIENTES:
-            act = QAction(nome, self)
-            act.triggered.connect(lambda _, a=arg: self.executar_script(a))
-            menu.addAction(act)
-
-    def _configurar_watcher(self):
-        if os.path.exists(INFO_FILE):
-            if TMP_DIR in self.watcher.directories():
-                self.watcher.removePath(TMP_DIR)
-            if INFO_FILE not in self.watcher.files():
-                self.watcher.addPath(INFO_FILE)
+    def _aplicar(self):
+        self.menu.clear()
+        if self.projeto:
+            self.setIcon(self.icone_ativo)
+            self.setToolTip(self.projeto)
+            self._acao(f"●  {self.projeto}", lambda: None, ativa=False)
+            self._acao("Abrir pasta do projeto", self.abrir_pasta, "folder-open")
+            self.menu.addSeparator()
+            self._acao("Trocar para:", lambda: None, ativa=False)
         else:
-            if TMP_DIR not in self.watcher.directories():
-                self.watcher.addPath(TMP_DIR)
+            self.setIcon(self.icone_ocioso)
+            self.setToolTip("Organizador: ocioso")
+        for nome, arg in CLIENTES:
+            self._acao(nome, lambda a=arg: self.executar(a))
+        self.menu.addSeparator()
+        if self.projeto:
+            self._acao("Parar monitoramento", lambda: self.executar("parar"), "media-playback-stop")
+        self._acao("Sair da bandeja", QApplication.quit, "application-exit")
 
-    def ao_mudar_tmp(self):
-        if os.path.exists(INFO_FILE):
-            self.atualizar_estado()
+    def ao_clicar(self, motivo):
+        # No GNOME o clique esquerdo só abre o menu (limitação da extensão)
+        gatilhos = (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.MiddleClick)
+        if self.projeto and motivo in gatilhos:
+            self.abrir_pasta()
 
-    def atualizar_estado(self):
-        self._configurar_watcher()
-
-        nome_projeto = ""
-        if os.path.exists(INFO_FILE):
-            try:
-                nome_projeto = Path(INFO_FILE).read_text(encoding="utf-8").strip()
-            except OSError:
-                nome_projeto = ""
-
-        if nome_projeto:
-            if nome_projeto != self.projeto_atual:
-                self.projeto_atual = nome_projeto
-                self.setIcon(self.icon_ativo)
-                self.setToolTip(f"Ativo: {nome_projeto} (Clique para abrir)")
-                self.action_status.setText(f"🟢 {nome_projeto}")
-                self.setContextMenu(self.menu_ativo)
+    def abrir_pasta(self):
+        pasta = TRABALHO / self.projeto
+        if not pasta.is_dir():
+            notificar("Pasta não encontrada", str(pasta), "dialog-warning")
             return
+        ambiente = {
+            k: v for k, v in os.environ.items()
+            if k not in ("LD_LIBRARY_PATH", "QT_PLUGIN_PATH", "QML2_IMPORT_PATH")
+        }
+        subprocess.Popen(["xdg-open", str(pasta)], env=ambiente, start_new_session=True)
 
-        if self.projeto_atual is not None or self.contextMenu() is not self.menu_ocioso:
-            self.projeto_atual = None
-            self.setIcon(self.icon_ocioso)
-            self.setToolTip("Organizador: Ocioso (Clique direito para iniciar)")
-            self.setContextMenu(self.menu_ocioso)
-
-    def ao_clicar_icone(self, reason: QSystemTrayIcon.ActivationReason):
-        if self.projeto_atual and reason in (
-            QSystemTrayIcon.ActivationReason.Trigger,
-            QSystemTrayIcon.ActivationReason.MiddleClick,
-        ):
-            self.abrir_pasta_projeto()
-
-    def abrir_pasta_projeto(self):
-        if not self.projeto_atual:
+    def executar(self, arg):
+        script = localizar_script()
+        if script is None:
+            notificar("organizador.sh não encontrado", "Rode o instalar.sh de novo.", "dialog-error")
             return
-
-        caminho = TRABALHO_DIR / self.projeto_atual
-        if not caminho.is_dir():
-            subprocess.Popen(
-                ["notify-send", "-a", "Organizador", "Pasta não encontrada", str(caminho)],
-                start_new_session=True,
-            )
-            return
-
-        env = os.environ.copy()
-        for var in ("LD_LIBRARY_PATH", "QT_PLUGIN_PATH", "QML2_IMPORT_PATH"):
-            env.pop(var, None)
-
-        gerenciador = "dolphin" if shutil.which("dolphin") else "xdg-open"
-        subprocess.Popen([gerenciador, str(caminho)], env=env, start_new_session=True)
-
-    def executar_script(self, arg: str):
-        if SCRIPT_PATH.is_file():
-            subprocess.Popen([str(SCRIPT_PATH), arg], start_new_session=True)
-
-    def parar_projeto(self):
-        self.executar_script("parar")
+        subprocess.Popen([str(script), arg], start_new_session=True)
 
 
 def main():
-    lock = QLockFile(LOCK_FILE)
-    lock.setStaleLockTime(0)
-    if not lock.tryLock(100):
-        sys.exit(0)
+    ESTADO.mkdir(mode=0o700, exist_ok=True)
+    trava = QLockFile(str(LOCK_FILE))
+    trava.setStaleLockTime(0)
+    if not trava.tryLock(100):
+        return
 
     limpar_estado_orfao()
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
-
-    tray = TrayMonitor()
-    tray.show()
-
+    bandeja = Bandeja()
+    bandeja.show()
+    # No login a bandeja do desktop pode demorar a carregar: espera antes de avisar
+    QTimer.singleShot(15000, avisar_se_sem_bandeja)
     sys.exit(app.exec())
 
 

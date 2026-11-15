@@ -1,125 +1,128 @@
-# 📁 Guia Passo a Passo: Seu Organizador Automático
+# Organizador de projetos
 
-Bem-vindo! Este guia foi feito para ajudar você (ou para você lembrar no futuro) a configurar e usar o seu sistema de organização automática de arquivos e pastas no CachyOS / KDE Plasma.
+Cria a pasta de cada projeto, move os downloads para o lugar certo e deixa atalhos para salvar projeto e export. Funciona em qualquer distro e ambiente gráfico (GNOME, KDE, XFCE...).
 
-## 🧐 O que esse sistema faz por você?
+## O que ele faz
 
-Quando você trabalha com edição de vídeos e imagens para clientes (*Premier League*, *Orlando Magic*, *Jr. NBA Brasil*), a pior parte é ter que criar pastas, espalhar arquivos e organizar os downloads manualmente.
+Ao apertar o atalho de um cliente, abre uma janela para criar um projeto novo ou retomar um antigo. No GNOME a janela é nativa (libadwaita, com tema claro/escuro e cor de destaque do sistema). Nos outros ambientes usa o visual nativo do Qt.
 
-Com este sistema, ao apertar um atalho no teclado ou clicar na bandeja do sistema:
+- **Premier League e Jr. NBA Brasil:** o projeto ganha `01_Brutos` (downloads, movidos sozinhos assim que terminam), `02_Projetos` e `03_Exports`.
+- **Orlando Magic:** pasta única, sem subpastas. Tudo vai para a raiz do projeto.
 
-1. Uma caixinha aparece na tela para você **criar um novo projeto** ou **continuar um projeto antigo**.
+Enquanto o projeto está ativo, aparecem direto em `~/Trabalho/` os atalhos `🛠️ SALVAR PROJETO` e `✅ SALVAR EXPORT` (no Orlando Magic, só o `✅ SALVAR EXPORT`). Eles somem quando o monitor para.
 
-2. Ele cria automaticamente a pasta do projeto de acordo com a necessidade do cliente:
+Projeto retomado não é alterado: nenhuma pasta é criada ou recriada. Se a `01_Brutos` não existir mais, os downloads vão para a raiz do projeto. Um atalho só é criado se a pasta de destino existir.
 
-   * **Premier League e Jr. NBA Brasil (estrutura completa):**
+## Instalar
 
-     * **`01_Brutos/`**: Todos os vídeos e arquivos baixados da internet vão direto para cá **sozinhos** (assim que o download termina, sem atrasos).
+Deixe estes 5 arquivos na mesma pasta: `instalar.sh`, `organizador.sh`, `organizador_dialog.py`, `organizador_dialog_gtk.py` e `organizador_tray.py`.
 
-     * **`02_Projetos/`**: Onde você salva seus arquivos do Premiere ou Photoshop.
+1. Abra a pasta no gerenciador de arquivos, clique com o botão direito num espaço vazio e escolha **Abrir no terminal**.
+2. Rode:
 
-     * **`03_Exports/`**: Onde ficam os vídeos e artes finalizadas.
+   ```bash
+   bash instalar.sh
+   ```
 
-   * **Orlando Magic (pasta única / geral):**
+3. Se faltar algum programa, o instalador mostra o comando da sua distro e pergunta se pode rodar. Responda `s` e digite sua senha.
 
-     * Sem subpastas! Tudo vai direto para a **pasta raiz do projeto** (downloads, arquivos de edição e exports no mesmo lugar).
+O mesmo comando serve para atualizar: rode de novo com os arquivos novos.
 
-3. Ele cria os atalhos práticos na sua **Área de trabalho** para você salvar seus arquivos direto no lugar certo com 1 clique dentro dos programas de edição:
+Instalação manual, se preferir:
 
-   * **Premier League / Jr. NBA Brasil:** Cria `🛠️ SALVAR PROJETO` e `✅ SALVAR EXPORT`.
+| Distro | Comando |
+| :--- | :--- |
+| Arch / CachyOS | `sudo pacman -S inotify-tools python-pyqt6 libnotify xdg-utils python-gobject libadwaita` |
+| Ubuntu / Debian | `sudo apt install inotify-tools python3-pyqt6 libnotify-bin xdg-utils python3-gi gir1.2-adw-1` |
+| Fedora | `sudo dnf install inotify-tools python3-pyqt6 libnotify xdg-utils python3-gobject libadwaita` |
 
-   * **Orlando Magic:** Cria apenas `✅ SALVAR EXPORT` apontando direto para a pasta geral do projeto.
+(`python-gobject` e `libadwaita` só são usados no GNOME, para a janela nativa. Em KDE e outros, pode omitir.)
 
-## 📍 Onde as coisas ficam no computador?
+Depois copie os 4 arquivos `organizador*` para `~/.local/bin/` e dê permissão com `chmod +x ~/.local/bin/organizador*`.
 
-* **O script principal (o "cérebro"):** `~/.local/bin/organizador.sh`
+## Atalhos de teclado
 
-* **O monitor da barra de tarefas:** `~/.local/bin/organizador_tray.py`
+Use estes comandos exatamente como estão:
 
-* **Onde os projetos são salvos:** Na sua pasta `~/Trabalho/`
+| Ação | Comando | GNOME | KDE |
+| :--- | :--- | :--- | :--- |
+| Premier League | `sh -c '$HOME/.local/bin/organizador.sh 1'` | `Ctrl+Alt+1` | `Meta+1` |
+| Orlando Magic | `sh -c '$HOME/.local/bin/organizador.sh 2'` | `Ctrl+Alt+2` | `Meta+2` |
+| Jr. NBA Brasil | `sh -c '$HOME/.local/bin/organizador.sh 3'` | `Ctrl+Alt+3` | `Meta+3` |
+| Parar | `sh -c '$HOME/.local/bin/organizador.sh parar'` | `Ctrl+Alt+0` | `Meta+0` |
 
-## ⚙️ Passo 1: Instalando pela primeira vez (ou se formatar o PC)
+**GNOME:** Configurações → Teclado → Ver e personalizar atalhos → Atalhos personalizados → botão **+**. Preencha o nome, cole o comando e defina as teclas. Evite `Super+número`: o GNOME já usa essas teclas para os apps da barra.
 
-Abra o seu terminal (Fish) e siga estes passos simples:
+**KDE:** Configurações do Sistema → Atalhos → Adicionar novo → Comando ou script.
 
-### 1. Instalar os programas necessários
+**Outros ambientes:** procure em Configurações → Teclado a opção de atalho personalizado.
 
-Copie e cole este comando no terminal para garantir que o seu computador tem as ferramentas que o script usa:
+## Bandeja no GNOME
 
-```fish
-sudo pacman -S inotify-tools python-pyqt6 libnotify
-```
+O GNOME não mostra ícones de bandeja sem uma extensão (o Ubuntu já vem com ela). Se a bolinha não aparecer:
 
-### 2. Criar a pasta de programas do usuário
+1. Instale a extensão:
+   - Arch / CachyOS: `sudo pacman -S gnome-shell-extension-appindicator`
+   - Ubuntu / Debian: `sudo apt install gnome-shell-extension-appindicator`
+   - Fedora: `sudo dnf install gnome-shell-extension-appindicator`
+2. Saia da sessão e entre de novo.
+3. Ative:
 
-```fish
-mkdir -p ~/.local/bin
-```
+   ```bash
+   gnome-extensions enable appindicatorsupport@rgcjonas.gmail.com
+   ```
 
-### 3. Copiar e ativar seus arquivos
+No GNOME o clique esquerdo na bolinha abre o menu, e a pasta do projeto abre por **Abrir pasta do projeto**. No KDE o clique esquerdo já abre a pasta. A bandeja é opcional: os atalhos de teclado funcionam sem ela.
 
-Coloque o seu arquivo `organizador.sh` e o `organizador_tray.py` dentro da pasta de Downloads e rode no terminal:
+## Uso
 
-```fish
-mv ~/Downloads/organizador.sh ~/.local/bin/organizador.sh
-mv ~/Downloads/organizador_tray.py ~/.local/bin/organizador_tray.py
-chmod +x ~/.local/bin/organizador.sh ~/.local/bin/organizador_tray.py
-```
+1. Aperte o atalho do cliente, ou clique na bolinha e escolha o cliente.
+2. Digite o nome de um projeto novo e aperte `Enter`, ou use `↓` para escolher um antigo e aperte `Enter`.
+3. Tudo que você baixar vai para o projeto ativo.
 
-### 4. Iniciar a bandeja automaticamente ao ligar o PC (Opcional)
+Bolinha cinza: nenhum projeto ativo. Verde: projeto ativo.
 
-Para que a bolinha de status apareça perto do relógio sempre que você entrar no KDE Plasma:
+## Perguntas
 
-```fish
-mkdir -p ~/.config/autostart
-printf '[Desktop Entry]\nType=Application\nName=Organizador Tray\nExec=/home/phquiste/.local/bin/organizador_tray.py\nX-KDE-autostart-phase=2\n' > ~/.config/autostart/organizador-tray.desktop
-```
+**Ele apaga arquivos?** Nunca. Só move downloads e cria ou remove os atalhos.
 
-## ⌨️ Passo 2: Configurando os Atalhos no Teclado (KDE Plasma)
+**E se eu esquecer o monitor ligado?** Sem downloads por 3 horas ele desliga sozinho e remove os atalhos. Se o PC reiniciar com um projeto ativo, a bandeja limpa os atalhos que sobraram (só links, nunca arquivos).
 
-Para abrir o menu dos clientes apertando apenas algumas teclas:
+**Qual pasta de downloads ele vigia?** A configurada no sistema, mesmo em outro idioma.
 
-1. Abra o menu iniciar do KDE e procure por **Configurações do Sistema**.
+**Quais arquivos ele ignora?** Downloads incompletos (`.crdownload`, `.part`, `.tmp`, `.opdownload`, `.download`, `.aria2`) e arquivos ocultos.
 
-2. Vá em **Teclado** e depois em **Atalhos** (ou digite "Atalhos" na busca).
+## Onde ficam os arquivos
 
-3. Clique no botão inferior para **Adicionar Novo** ➔ **Comando ou Script...**.
+Tudo que o programa coloca no seu computador, para você saber onde está cada coisa.
 
-4. Dê um nome (ex: *Organizador - Premier League*) e cole o **Comando Exato** abaixo, definindo um atalho no teclado (como `Meta + 1`):
+| Onde | Arquivo | Para que serve |
+| :--- | :--- | :--- |
+| `~/.local/bin/` | `organizador.sh` | Cria o projeto e move os downloads |
+| `~/.local/bin/` | `organizador_dialog.py` | Janela de escolha de projeto (KDE e outros) |
+| `~/.local/bin/` | `organizador_dialog_gtk.py` | Janela de escolha de projeto (GNOME) |
+| `~/.local/bin/` | `organizador_tray.py` | A bolinha da bandeja |
+| `~/.config/autostart/` | `organizador-tray.desktop` | Faz a bolinha abrir sozinha ao ligar o PC |
+| `~/.local/share/applications/` | `local.organizador.dialogo.desktop` | Dá nome e ícone à janela no GNOME (só estético) |
+| `/tmp/organizador-<número>/` | `monitor.pid`, `projeto`, `notificacao`, `bandeja.lock` | Bilhetes temporários entre as peças. Somem ao reiniciar o PC |
+| `~/Trabalho/` | `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT` | Atalhos que só existem enquanto um projeto está ativo |
 
-| Cliente / Ação | Cole este Comando Exato no KDE | Atalho Sugerido | 
-| :--- | :--- | :--- | 
-| **Premier League** | `/home/phquiste/.local/bin/organizador.sh 1` | `Meta + 1` | 
-| **Orlando Magic** | `/home/phquiste/.local/bin/organizador.sh 2` | `Meta + 2` | 
-| **Jr. NBA Brasil** | `/home/phquiste/.local/bin/organizador.sh 3` | `Meta + 3` | 
-| **Parar Monitor** | `/home/phquiste/.local/bin/organizador.sh parar` | `Meta + 0` | 
+Fora disso:
 
-## 🟢 Como usar no dia a dia
+- **Seus projetos** (as pastas dentro de `~/Trabalho/`) são o seu trabalho, não arquivos do programa. Nunca são apagados.
+- **Na pasta de onde você instalou** ficam o `instalar.sh`, o `README.md` e as cópias originais dos arquivos. Depois de instalar dá para apagar, mas guarde se quiser reinstalar ou atualizar.
+- **Programas do sistema** instalados pelo `instalar.sh` (como `inotify-tools` e `python-pyqt6`) ficam no sistema, não em pastas suas. No GNOME, a extensão AppIndicator também fica no sistema.
 
-1. Aperte o atalho do cliente (ex: **Meta + 1** ou **Meta + 2**) **ou** clique com o **botão direito na bolinha cinza** da bandeja do sistema e escolha o cliente.
+## Desinstalar
 
-2. Uma janelinha vai abrir:
+1. Pare o monitoramento e feche a bolinha (menu da bolinha → **Parar monitoramento**, depois **Sair da bandeja**).
+2. Rode no terminal:
 
-   * **Para criar um projeto novo:** Digite o nome dele na caixinha e aperte `Enter`.
+   ```bash
+   rm ~/.local/bin/organizador*
+   rm ~/.config/autostart/organizador-tray.desktop
+   rm ~/.local/share/applications/local.organizador.dialogo.desktop
+   rm -rf /tmp/organizador-*
+   ```
 
-   * **Para abrir um projeto antigo:** Use as setas do teclado para baixo (`↓`) para escolher na lista e aperte `Enter`.
-
-3. Pronto! O(s) atalho(s) correspondentes vão aparecer na sua Área de trabalho (`🛠️ SALVAR PROJETO` e `✅ SALVAR EXPORT`, ou apenas `✅ SALVAR EXPORT` no caso do Orlando Magic). Tudo o que você baixar vai direto para o projeto ativo.
-
-## 🛡️ Dúvidas Frequentes (FAQ)
-
-* **O script apaga meus arquivos brutos antigos sozinho?**
-  **Não!** Por segurança, o script nunca apaga nada das suas pastas. Você tem controle total e apaga os arquivos manualmente quando quiser liberar espaço.
-
-* **E se eu esquecer o monitor ligado ou reiniciar o PC com um projeto aberto?**
-  Fique tranquilo:
-  * Se você passar **3 horas** sem baixar absolutamente nada, o monitor se desliga sozinho por segurança e limpa os atalhos da Área de trabalho.
-  * Se você reiniciar ou desligar o computador com um projeto ativo, assim que a bandeja iniciar novamente ela detecta que o monitor não está mais rodando e **limpa automaticamente os atalhos órfãos** da Área de trabalho.
-
-* **Como funciona a bolinha na bandeja do sistema?**
-  Perto do relógio do KDE, o ícone mostra o estado atual em tempo real:
-  * **Quando está ocioso (bolinha cinza):**
-    * **Clique direito:** abre o hub enxuto para iniciar um projeto (*Premier League*, *Orlando Magic*, *Jr. NBA Brasil*) ou sair da bandeja.
-  * **Quando há um projeto rodando (bolinha verde):**
-    * **Clique esquerdo** (ou clique do meio): abre a pasta do projeto ativo direto no Dolphin.
-    * **Clique direito:** abre o menu completo com o nome do projeto ativo, **📂 Abrir Pasta do Projeto**, **Trocar Projeto** e **⏹️ Parar Monitoramento**.
+Seus projetos em `~/Trabalho/` continuam lá. Se sobrar algum atalho `🛠️ SALVAR PROJETO` ou `✅ SALVAR EXPORT` em `~/Trabalho/`, pode apagar: são só links.
