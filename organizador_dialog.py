@@ -56,12 +56,16 @@ class Campo(QLineEdit):
             super().keyPressEvent(evento)
 
 
+def listar_projetos(cliente, trabalho):
+    pastas = [p for p in trabalho.iterdir() if p.is_dir() and f" - {cliente} - " in p.name]
+    # Ordena cronologicamente (mais recente primeiro) pelo prefixo YY-MM-DD e desempata por mtime
+    pastas.sort(key=lambda p: (p.name.partition(" - ")[0], p.stat().st_mtime), reverse=True)
+    return [p.name for p in pastas[:5]]
+
+
 def main():
     cliente, trabalho = sys.argv[1], Path(sys.argv[2])
-    projetos = sorted(
-        (p.name for p in trabalho.iterdir() if p.is_dir() and f" - {cliente} - " in p.name),
-        reverse=True,
-    )
+    projetos = listar_projetos(cliente, trabalho)
 
     seguir_tema_gnome()
     app = QApplication(sys.argv)

@@ -1,15 +1,15 @@
 # Organizador de projetos
 
-Cria a pasta de cada projeto, move os downloads para o lugar certo e deixa atalhos para salvar projeto e export. Funciona em qualquer distro e ambiente gráfico (GNOME, KDE, XFCE...).
+Cria a pasta de cada projeto, move os downloads para o lugar certo e deixa atalhos para brutos, projeto e export. Funciona em qualquer distro e ambiente gráfico (GNOME, KDE, XFCE...).
 
 ## O que ele faz
 
-Ao apertar o atalho de um cliente, abre uma janela para criar um projeto novo ou retomar um antigo. No GNOME a janela é nativa (libadwaita, com tema claro/escuro e cor de destaque do sistema). Nos outros ambientes usa o visual nativo do Qt.
+Ao apertar o atalho de um cliente, abre uma janela para criar um projeto novo ou retomar um dos 5 mais recentes (ordenados do mais novo para o mais antigo). No GNOME a janela é nativa (libadwaita, com tema claro/escuro e cor de destaque do sistema). Nos outros ambientes usa o visual nativo do Qt.
 
 - **Premier League e Jr. NBA Brasil:** o projeto ganha `01_Brutos` (downloads, movidos sozinhos assim que terminam), `02_Projetos` e `03_Exports`.
 - **Orlando Magic:** pasta única, sem subpastas. Tudo vai para a raiz do projeto.
 
-Os projetos ficam em `~/Trabalho/` (a "pasta mãe"), a menos que você escolha outra (veja **Trocar a pasta mãe**). Enquanto o projeto está ativo, aparecem direto na pasta mãe os atalhos `🛠️ SALVAR PROJETO` e `✅ SALVAR EXPORT` (no Orlando Magic, só o `✅ SALVAR EXPORT`). Eles somem quando o monitor para.
+Os projetos ficam em `~/Trabalho/` (a "pasta mãe"), a menos que você escolha outra (veja **Trocar a pasta mãe**). Enquanto o projeto está ativo, aparecem direto na pasta mãe os atalhos `📥 BRUTOS`, `🛠️ SALVAR PROJETO` e `✅ SALVAR EXPORT` (no Orlando Magic, `📥 BRUTOS` e `✅ SALVAR EXPORT`). Eles somem quando o monitor para.
 
 Projeto retomado não é alterado: nenhuma pasta é criada ou recriada. Se a `01_Brutos` não existir mais, os downloads vão para a raiz do projeto. Um atalho só é criado se a pasta de destino existir.
 
@@ -67,7 +67,7 @@ Por padrão os projetos ficam em `~/Trabalho`. Para usar outra pasta (um HD exte
 A escolha vale para todos os projetos seguintes e só muda quando você trocar de novo. Para voltar ao padrão, escolha `~/Trabalho` outra vez.
 
 - Só dá para trocar com o monitoramento parado. Com um projeto ativo, o programa avisa e pede para parar antes.
-- Projetos antigos continuam na pasta anterior. A lista "Retomar projeto" mostra só os da pasta mãe atual.
+- Projetos antigos continuam na pasta anterior. A lista "Retomar projeto" mostra os 5 projetos mais recentes do cliente na pasta mãe atual.
 - Se a pasta escolhida sumir (HD desconectado, por exemplo), o programa avisa e usa `~/Trabalho` até ela voltar.
 
 ## Bandeja no GNOME
@@ -90,7 +90,7 @@ No GNOME o clique esquerdo na bolinha abre o menu, e a pasta do projeto abre por
 ## Uso
 
 1. Aperte o atalho do cliente, ou clique na bolinha e escolha o cliente.
-2. Digite o nome de um projeto novo e aperte `Enter`, ou use `↓` para escolher um antigo e aperte `Enter`.
+2. Digite o nome de um projeto novo e aperte `Enter`, ou use `↓` para escolher um dos 5 projetos recentes e aperte `Enter`.
 3. Tudo que você baixar vai para o projeto ativo.
 
 Bolinha cinza: nenhum projeto ativo. Verde: projeto ativo.
@@ -119,7 +119,7 @@ Tudo que o programa coloca no seu computador, para você saber onde está cada c
 | `~/.local/share/applications/` | `local.organizador.dialogo.desktop` | Dá nome e ícone à janela no GNOME (só estético) |
 | `/tmp/organizador-<número>/` | `monitor.pid`, `projeto`, `notificacao`, `bandeja.lock` | Bilhetes temporários entre as peças. Somem ao reiniciar o PC |
 | `~/.config/` | `organizador.conf` | Guarda a pasta mãe escolhida. Só existe se você trocar a pasta |
-| Pasta mãe (`~/Trabalho/` por padrão) | `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT` | Atalhos que só existem enquanto um projeto está ativo |
+| Pasta mãe (`~/Trabalho/` por padrão) | `📥 BRUTOS`, `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT` | Atalhos que só existem enquanto um projeto está ativo |
 
 Fora disso:
 
@@ -140,4 +140,4 @@ Fora disso:
    rm -rf /tmp/organizador-*
    ```
 
-Seus projetos continuam na pasta mãe. Se sobrar algum atalho `🛠️ SALVAR PROJETO` ou `✅ SALVAR EXPORT` nela, pode apagar: são só links.
+Seus projetos continuam na pasta mãe. Se sobrar algum atalho `📥 BRUTOS`, `🛠️ SALVAR PROJETO` ou `✅ SALVAR EXPORT` nela, pode apagar: são só links.

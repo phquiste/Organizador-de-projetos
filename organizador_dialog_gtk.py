@@ -23,8 +23,10 @@ APP_ID = "local.organizador.dialogo"
 
 
 def listar_projetos(cliente, trabalho):
-    pastas = (p.name for p in trabalho.iterdir() if p.is_dir() and f" - {cliente} - " in p.name)
-    return sorted(pastas, reverse=True)
+    pastas = [p for p in trabalho.iterdir() if p.is_dir() and f" - {cliente} - " in p.name]
+    # Ordena cronologicamente (mais recente primeiro) pelo prefixo YY-MM-DD e desempata por mtime
+    pastas.sort(key=lambda p: (p.name.partition(" - ")[0], p.stat().st_mtime), reverse=True)
+    return [p.name for p in pastas[:5]]
 
 
 class Janela(Adw.ApplicationWindow):
