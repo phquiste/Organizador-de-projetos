@@ -79,8 +79,7 @@ class Campo(QLineEdit):
     def keyPressEvent(self, evento):
         if evento.key() == Qt.Key.Key_Down and self.lista.count():
             self.lista.setFocus()
-            if self.lista.currentRow() < 0:
-                self.lista.setCurrentRow(0)
+            self.lista.setCurrentRow(0)
         else:
             super().keyPressEvent(evento)
 
@@ -127,14 +126,14 @@ def main():
         nome = campo.text().replace("/", "-").replace(":", "-").strip()
         if nome:
             escolha[:] = ["NOVO", nome]
-        elif lista.currentItem():
-            escolha[:] = ["EXISTENTE", lista.currentItem().data(Qt.ItemDataRole.UserRole)]
+        elif lista.selectedItems():
+            escolha[:] = ["EXISTENTE", lista.selectedItems()[0].data(Qt.ItemDataRole.UserRole)]
         else:
             return
         dialogo.accept()
 
     campo.textChanged.connect(lambda texto: texto.strip() and lista.clearSelection())
-    lista.itemClicked.connect(lambda _: campo.clear())
+    lista.itemSelectionChanged.connect(lambda: lista.selectedItems() and campo.clear())
     lista.itemDoubleClicked.connect(lambda _: aceitar())
     botoes.accepted.connect(aceitar)
     botoes.rejected.connect(dialogo.reject)

@@ -41,18 +41,22 @@ Depois copie os 4 arquivos `organizador*` para `~/.local/bin/` e dê permissão 
 
 ## Atalhos de teclado
 
-Use estes comandos exatamente como estão:
+Use estes comandos exatamente como estão, **sem aspas e sem `sh -c`**. Eles servem no GNOME e no KDE. Troque `SEU_USUARIO` pelo seu nome de usuário (o `instalar.sh` mostra os comandos já prontos no final, é só copiar):
 
-| Ação | Comando | GNOME | KDE |
-| :--- | :--- | :--- | :--- |
-| Premier League | `sh -c '$HOME/.local/bin/organizador.sh 1'` | `Ctrl+Alt+1` | `Meta+1` |
-| Orlando Magic | `sh -c '$HOME/.local/bin/organizador.sh 2'` | `Ctrl+Alt+2` | `Meta+2` |
-| Jr. NBA Brasil | `sh -c '$HOME/.local/bin/organizador.sh 3'` | `Ctrl+Alt+3` | `Meta+3` |
-| Parar | `sh -c '$HOME/.local/bin/organizador.sh parar'` | `Ctrl+Alt+0` | `Meta+0` |
+| Ação | Comando | Tecla |
+| :--- | :--- | :--- |
+| Premier League | `/home/SEU_USUARIO/.local/bin/organizador.sh 1` | `Ctrl+1` |
+| Orlando Magic | `/home/SEU_USUARIO/.local/bin/organizador.sh 2` | `Ctrl+2` |
+| Jr. NBA Brasil | `/home/SEU_USUARIO/.local/bin/organizador.sh 3` | `Ctrl+3` |
+| Parar | `/home/SEU_USUARIO/.local/bin/organizador.sh parar` | `Ctrl+'` (apóstrofo) |
 
-**GNOME:** Configurações → Teclado → Ver e personalizar atalhos → Atalhos personalizados → botão **+**. Preencha o nome, cole o comando e defina as teclas. Evite `Super+número`: o GNOME já usa essas teclas para os apps da barra.
+As teclas são as mesmas no GNOME e no KDE. Atenção: `Ctrl+número` também é usado por navegadores (trocar de aba) e por alguns programas. Como o atalho é global, ele vale em qualquer lugar e pode tomar essas teclas. Se isso atrapalhar, troque por `Ctrl+Alt+1`, `2`, `3` e `0`.
 
-**KDE:** Configurações do Sistema → Atalhos → Adicionar novo → Comando ou script.
+Por que o caminho completo: GNOME e KDE não interpretam `$HOME`, `~` nem aspas do mesmo jeito que o terminal. O caminho completo é lido igual nos dois.
+
+**GNOME:** Configurações → Teclado → Ver e personalizar atalhos → Atalhos personalizados → botão **+**. Preencha o nome, cole o comando e defina as teclas.
+
+**KDE:** Configurações do Sistema → Atalhos → Adicionar novo → Comando ou script. Cole o comando e defina as teclas.
 
 **Outros ambientes:** procure em Configurações → Teclado a opção de atalho personalizado.
 

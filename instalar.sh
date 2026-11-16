@@ -91,8 +91,8 @@ case "${XDG_CURRENT_DESKTOP:-}" in
 esac
 
 echo
-echo "Pronto. Comandos para os atalhos de teclado:"
-echo "  Premier League : sh -c '\$HOME/.local/bin/organizador.sh 1'"
-echo "  Orlando Magic  : sh -c '\$HOME/.local/bin/organizador.sh 2'"
-echo "  Jr. NBA Brasil : sh -c '\$HOME/.local/bin/organizador.sh 3'"
-echo "  Parar          : sh -c '\$HOME/.local/bin/organizador.sh parar'"
+echo "Pronto. Comandos para os atalhos de teclado (servem no GNOME e no KDE; cole exatamente assim, sem aspas):"
+echo "  Premier League : $BIN/organizador.sh 1"
+echo "  Orlando Magic  : $BIN/organizador.sh 2"
+echo "  Jr. NBA Brasil : $BIN/organizador.sh 3"
+echo "  Parar          : $BIN/organizador.sh parar"
