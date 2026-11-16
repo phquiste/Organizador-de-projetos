@@ -20,6 +20,7 @@ INFO_FILE="$ESTADO/projeto"
 NOTIFY_FILE="$ESTADO/notificacao"
 ATALHO_PROJETO="$TRABALHO/🛠️ SALVAR PROJETO"
 ATALHO_EXPORT="$TRABALHO/✅ SALVAR EXPORT"
+ATALHO_BRUTOS="$TRABALHO/📂 ARQUIVOS BRUTOS"
 TIMEOUT=10800
 IGNORAR='(/\.[^/]*|\.(crdownload|part|tmp|opdownload|download|aria2))$'
 AQUI="$(dirname "$(readlink -f "$0")")"
@@ -64,7 +65,7 @@ parar_monitor() {
 }
 
 remover_atalhos() {
-    rm -f "$ATALHO_PROJETO" "$ATALHO_EXPORT"
+    rm -f "$ATALHO_PROJETO" "$ATALHO_EXPORT" "$ATALHO_BRUTOS"
 }
 
 # Só cria o atalho se a pasta existir; projeto retomado nunca ganha pastas novas.
@@ -173,30 +174,22 @@ case "$TIPO" in
     NOVO)
         printf -v DATA '%(%y-%m-%d)T' -1
         PROJETO="$TRABALHO/$DATA - $CLIENTE - $VALOR"
-        if [ "$CLIENTE" = "Orlando Magic" ]; then
-            mkdir -p "$PROJETO"
-        else
-            mkdir -p "$PROJETO"/{01_Brutos,02_Projetos,03_Exports}
-        fi
+        mkdir -p "$PROJETO"/{01_Brutos,02_Projetos,03_Exports}
         ;;
     EXISTENTE) PROJETO="$TRABALHO/$VALOR" ;;
     *) exit 0 ;;
 esac
 
+# Downloads vão para a 01_Brutos; se ela não existir (projeto antigo), para a raiz do projeto
 DESTINO="$PROJETO"
-if [ "$CLIENTE" != "Orlando Magic" ] && [ -d "$PROJETO/01_Brutos" ]; then
-    DESTINO="$PROJETO/01_Brutos"
-fi
+[ -d "$PROJETO/01_Brutos" ] && DESTINO="$PROJETO/01_Brutos"
 
 parar_monitor
 fechar_notificacao
 remover_atalhos
-if [ "$CLIENTE" = "Orlando Magic" ]; then
-    atalho "$PROJETO" "$ATALHO_EXPORT"
-else
-    atalho "$PROJETO/02_Projetos" "$ATALHO_PROJETO"
-    atalho "$PROJETO/03_Exports" "$ATALHO_EXPORT"
-fi
+atalho "$PROJETO/02_Projetos" "$ATALHO_PROJETO"
+atalho "$PROJETO/03_Exports" "$ATALHO_EXPORT"
+atalho "$DESTINO" "$ATALHO_BRUTOS"
 
 # Escrita atômica: a bandeja nunca lê o arquivo pela metade
 basename "$PROJETO" > "$INFO_FILE.tmp"

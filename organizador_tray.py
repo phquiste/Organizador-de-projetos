@@ -17,7 +17,7 @@ NOTIFY_FILE = ESTADO / "notificacao"
 LOCK_FILE = ESTADO / "bandeja.lock"
 PADRAO = Path.home() / "Trabalho"
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "organizador.conf"
-ATALHOS = ("🛠️ SALVAR PROJETO", "✅ SALVAR EXPORT")
+ATALHOS = ("🛠️ SALVAR PROJETO", "✅ SALVAR EXPORT", "📂 ARQUIVOS BRUTOS")
 CLIENTES = (("Premier League", "1"), ("Orlando Magic", "2"), ("Jr. NBA Brasil", "3"))
 
 
@@ -64,9 +64,10 @@ def icone_status(cor):
     pixmap.fill(Qt.GlobalColor.transparent)
     pintor = QPainter(pixmap)
     pintor.setRenderHint(QPainter.RenderHint.Antialiasing)
-    pintor.setPen(QPen(QColor(cor).darker(130), 6))
+    # O círculo ocupa o ícone todo: o contorno (4 px) é centrado na borda, então o retângulo recua 2 px
+    pintor.setPen(QPen(QColor(cor).darker(130), 4))
     pintor.setBrush(QColor(cor))
-    pintor.drawEllipse(16, 16, 96, 96)
+    pintor.drawEllipse(2, 2, 124, 124)
     pintor.end()
     return QIcon(pixmap)
 

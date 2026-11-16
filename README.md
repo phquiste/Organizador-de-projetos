@@ -1,15 +1,14 @@
 # Organizador de projetos
 
-Cria a pasta de cada projeto, move os downloads para o lugar certo e deixa atalhos para salvar projeto e export. Funciona em qualquer distro e ambiente gráfico (GNOME, KDE, XFCE...).
+Cria a pasta de cada projeto, move os downloads para o lugar certo e deixa atalhos para salvar projeto, salvar export e abrir os brutos. Funciona em qualquer distro e ambiente gráfico (GNOME, KDE, XFCE...).
 
 ## O que ele faz
 
 Ao apertar o atalho de um cliente, abre uma janela para criar um projeto novo ou retomar um antigo. No GNOME a janela é nativa (libadwaita, com tema claro/escuro e cor de destaque do sistema). Nos outros ambientes usa o visual nativo do Qt.
 
-- **Premier League e Jr. NBA Brasil:** o projeto ganha `01_Brutos` (downloads, movidos sozinhos assim que terminam), `02_Projetos` e `03_Exports`.
-- **Orlando Magic:** pasta única, sem subpastas. Tudo vai para a raiz do projeto.
+Todo projeto novo, de qualquer cliente, ganha as mesmas três subpastas: `01_Brutos` (downloads, movidos sozinhos assim que terminam), `02_Projetos` e `03_Exports`.
 
-Os projetos ficam em `~/Trabalho/` (a "pasta mãe"), a menos que você escolha outra (veja **Trocar a pasta mãe**). Enquanto o projeto está ativo, aparecem direto na pasta mãe os atalhos `🛠️ SALVAR PROJETO` e `✅ SALVAR EXPORT` (no Orlando Magic, só o `✅ SALVAR EXPORT`). Eles somem quando o monitor para.
+Os projetos ficam em `~/Trabalho/` (a "pasta mãe"), a menos que você escolha outra (veja **Trocar a pasta mãe**). Enquanto o projeto está ativo, aparecem direto na pasta mãe os atalhos `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT` e `📂 ARQUIVOS BRUTOS`. Este último leva para onde os downloads caem, a `01_Brutos`. Use-o para indicar os brutos no Photoshop e em outros programas. Os atalhos somem quando o monitor para.
 
 Projeto retomado não é alterado: nenhuma pasta é criada ou recriada. Se a `01_Brutos` não existir mais, os downloads vão para a raiz do projeto. Um atalho só é criado se a pasta de destino existir.
 
@@ -121,7 +120,7 @@ Tudo que o programa coloca no seu computador, para você saber onde está cada c
 | `~/.local/share/applications/` | `local.organizador.dialogo.desktop` | Dá nome e ícone à janela no GNOME (só estético) |
 | `/tmp/organizador-<número>/` | `monitor.pid`, `projeto`, `notificacao`, `bandeja.lock` | Bilhetes temporários entre as peças. Somem ao reiniciar o PC |
 | `~/.config/` | `organizador.conf` | Guarda a pasta mãe escolhida. Só existe se você trocar a pasta |
-| Pasta mãe (`~/Trabalho/` por padrão) | `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT` | Atalhos que só existem enquanto um projeto está ativo |
+| Pasta mãe (`~/Trabalho/` por padrão) | `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT`, `📂 ARQUIVOS BRUTOS` | Atalhos que só existem enquanto um projeto está ativo |
 
 Fora disso:
 
@@ -142,4 +141,4 @@ Fora disso:
    rm -rf /tmp/organizador-*
    ```
 
-Seus projetos continuam na pasta mãe. Se sobrar algum atalho `🛠️ SALVAR PROJETO` ou `✅ SALVAR EXPORT` nela, pode apagar: são só links.
+Seus projetos continuam na pasta mãe. Se sobrar algum atalho `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT` ou `📂 ARQUIVOS BRUTOS` nela, pode apagar: são só links.
