@@ -18,7 +18,6 @@ ESTADO="/tmp/organizador-$UID"
 PID_FILE="$ESTADO/monitor.pid"
 INFO_FILE="$ESTADO/projeto"
 NOTIFY_FILE="$ESTADO/notificacao"
-ATALHO_BRUTOS="$TRABALHO/📥 BRUTOS"
 ATALHO_PROJETO="$TRABALHO/🛠️ SALVAR PROJETO"
 ATALHO_EXPORT="$TRABALHO/✅ SALVAR EXPORT"
 TIMEOUT=10800
@@ -65,7 +64,7 @@ parar_monitor() {
 }
 
 remover_atalhos() {
-    rm -f "$ATALHO_BRUTOS" "$ATALHO_PROJETO" "$ATALHO_EXPORT"
+    rm -f "$ATALHO_PROJETO" "$ATALHO_EXPORT"
 }
 
 # Só cria o atalho se a pasta existir; projeto retomado nunca ganha pastas novas.
@@ -193,10 +192,8 @@ parar_monitor
 fechar_notificacao
 remover_atalhos
 if [ "$CLIENTE" = "Orlando Magic" ]; then
-    atalho "$PROJETO" "$ATALHO_BRUTOS"
     atalho "$PROJETO" "$ATALHO_EXPORT"
 else
-    atalho "$PROJETO/01_Brutos" "$ATALHO_BRUTOS"
     atalho "$PROJETO/02_Projetos" "$ATALHO_PROJETO"
     atalho "$PROJETO/03_Exports" "$ATALHO_EXPORT"
 fi

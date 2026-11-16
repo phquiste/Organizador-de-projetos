@@ -4,8 +4,10 @@
 Imprime "NOVO|nome" ou "EXISTENTE|pasta". Usa o visual nativo do sistema.
 """
 import os
+import re
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 
 try:
@@ -40,6 +42,33 @@ def aplicar_esquema(app):
         app.styleHints().setColorScheme(Qt.ColorScheme.Dark if escuro else Qt.ColorScheme.Light)
 
 
+def normalizar(texto):
+    """Minúsculas, sem acentos, e qualquer traço, ponto ou espaço vira um espaço só."""
+    texto = unicodedata.normalize("NFKD", texto).casefold()
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    return re.sub(r"[\W_]+", " ", texto).strip()
+
+
+def eh_do_cliente(pasta, cliente):
+    """True se o nome do cliente vem logo depois da data. Caixa, acento e tipo de traço não importam."""
+    nome = re.sub(r"^(\d+ ){1,3}", "", normalizar(pasta))
+    return (nome + " ").startswith(normalizar(cliente) + " ")
+
+
+def listar_projetos(cliente, trabalho):
+    pastas = (
+        p.name for p in trabalho.iterdir()
+        if p.is_dir() and not p.name.startswith(".") and eh_do_cliente(p.name, cliente)
+    )
+    return sorted(pastas, reverse=True)
+
+
+def separar_nome(pasta):
+    """Divide 'AA-MM-DD - Cliente - Nome' em (data, nome). Fora desse formato, devolve ('', pasta)."""
+    partes = re.split(r"\s+[-–—]\s+", pasta, maxsplit=2)
+    return (partes[0], partes[2]) if len(partes) == 3 else ("", pasta)
+
+
 class Campo(QLineEdit):
     """Campo de texto onde a seta para baixo passa o foco para a lista."""
 
@@ -56,13 +85,6 @@ class Campo(QLineEdit):
             super().keyPressEvent(evento)
 
 
-def listar_projetos(cliente, trabalho):
-    pastas = [p for p in trabalho.iterdir() if p.is_dir() and f" - {cliente} - " in p.name]
-    # Ordena cronologicamente (mais recente primeiro) pelo prefixo YY-MM-DD e desempata por mtime
-    pastas.sort(key=lambda p: (p.name.partition(" - ")[0], p.stat().st_mtime), reverse=True)
-    return [p.name for p in pastas[:5]]
-
-
 def main():
     cliente, trabalho = sys.argv[1], Path(sys.argv[2])
     projetos = listar_projetos(cliente, trabalho)
@@ -76,9 +98,8 @@ def main():
 
     lista = QListWidget()
     for pasta in projetos:
-        data, _, resto = pasta.partition(" - ")
-        nome = resto.partition(" - ")[2] or pasta
-        item = QListWidgetItem(f"{nome}\n{data}")
+        data, nome = separar_nome(pasta)
+        item = QListWidgetItem(f"{nome}\n{data}" if data else nome)
         item.setData(Qt.ItemDataRole.UserRole, pasta)
         lista.addItem(item)
     campo = Campo(lista)

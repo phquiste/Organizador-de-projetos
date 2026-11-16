@@ -17,7 +17,7 @@ NOTIFY_FILE = ESTADO / "notificacao"
 LOCK_FILE = ESTADO / "bandeja.lock"
 PADRAO = Path.home() / "Trabalho"
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "organizador.conf"
-ATALHOS = ("📥 BRUTOS", "🛠️ SALVAR PROJETO", "✅ SALVAR EXPORT")
+ATALHOS = ("🛠️ SALVAR PROJETO", "✅ SALVAR EXPORT")
 CLIENTES = (("Premier League", "1"), ("Orlando Magic", "2"), ("Jr. NBA Brasil", "3"))
 
 

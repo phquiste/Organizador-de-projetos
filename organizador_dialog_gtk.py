@@ -4,7 +4,9 @@
 Imprime "NOVO|nome" ou "EXISTENTE|pasta". Sai com código 2 se faltar
 GTK4/libadwaita, e o organizador.sh usa a janela Qt no lugar.
 """
+import re
 import sys
+import unicodedata
 from pathlib import Path
 
 try:
@@ -22,11 +24,31 @@ except (ImportError, ValueError):
 APP_ID = "local.organizador.dialogo"
 
 
+def normalizar(texto):
+    """Minúsculas, sem acentos, e qualquer traço, ponto ou espaço vira um espaço só."""
+    texto = unicodedata.normalize("NFKD", texto).casefold()
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    return re.sub(r"[\W_]+", " ", texto).strip()
+
+
+def eh_do_cliente(pasta, cliente):
+    """True se o nome do cliente vem logo depois da data. Caixa, acento e tipo de traço não importam."""
+    nome = re.sub(r"^(\d+ ){1,3}", "", normalizar(pasta))
+    return (nome + " ").startswith(normalizar(cliente) + " ")
+
+
 def listar_projetos(cliente, trabalho):
-    pastas = [p for p in trabalho.iterdir() if p.is_dir() and f" - {cliente} - " in p.name]
-    # Ordena cronologicamente (mais recente primeiro) pelo prefixo YY-MM-DD e desempata por mtime
-    pastas.sort(key=lambda p: (p.name.partition(" - ")[0], p.stat().st_mtime), reverse=True)
-    return [p.name for p in pastas[:5]]
+    pastas = (
+        p.name for p in trabalho.iterdir()
+        if p.is_dir() and not p.name.startswith(".") and eh_do_cliente(p.name, cliente)
+    )
+    return sorted(pastas, reverse=True)
+
+
+def separar_nome(pasta):
+    """Divide 'AA-MM-DD - Cliente - Nome' em (data, nome). Fora desse formato, devolve ('', pasta)."""
+    partes = re.split(r"\s+[-–—]\s+", pasta, maxsplit=2)
+    return (partes[0], partes[2]) if len(partes) == 3 else ("", pasta)
 
 
 class Janela(Adw.ApplicationWindow):
@@ -64,8 +86,7 @@ class Janela(Adw.ApplicationWindow):
         self.lista.add_css_class("boxed-list")
         self.pastas = {}
         for pasta in projetos:
-            data, _, resto = pasta.partition(" - ")
-            nome = resto.partition(" - ")[2] or pasta
+            data, nome = separar_nome(pasta)
             linha = Adw.ActionRow(title=GLib.markup_escape_text(nome), subtitle=GLib.markup_escape_text(data))
             linha.set_activatable(True)
             self.pastas[linha] = pasta
