@@ -12,6 +12,7 @@ from pathlib import Path
 
 try:
     from PyQt6.QtCore import Qt
+    from PyQt6.QtGui import QIcon
     from PyQt6.QtWidgets import (
         QApplication, QDialog, QDialogButtonBox, QLabel,
         QLineEdit, QListWidget, QListWidgetItem, QVBoxLayout,
@@ -91,7 +92,11 @@ def main():
     seguir_tema_gnome()
     app = QApplication(sys.argv)
     aplicar_esquema(app)
+    # Ícone da janela: sem isso, o X11 mostra um "X" genérico
+    icone = QIcon.fromTheme("folder", QIcon.fromTheme("inode-directory"))
+    app.setWindowIcon(icone)
     dialogo = QDialog()
+    dialogo.setWindowIcon(icone)
     dialogo.setWindowTitle(cliente)
     dialogo.setMinimumWidth(440)
 
