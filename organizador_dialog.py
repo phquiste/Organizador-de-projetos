@@ -92,6 +92,8 @@ def main():
     seguir_tema_gnome()
     app = QApplication(sys.argv)
     aplicar_esquema(app)
+    # No Wayland o ícone vem do .desktop com este nome (criado pelo instalar.sh)
+    app.setDesktopFileName("local.organizador.dialogo")
     # Ícone da janela: sem isso, o X11 mostra um "X" genérico
     icone = QIcon.fromTheme("folder", QIcon.fromTheme("inode-directory"))
     app.setWindowIcon(icone)

@@ -55,6 +55,7 @@ class Janela(Adw.ApplicationWindow):
     def __init__(self, app, cliente, projetos, escolha):
         super().__init__(application=app, title="Organizador", default_width=440, resizable=False)
         self.escolha = escolha
+        self.set_icon_name("folder")  # no X11 não depende do .desktop
 
         cancelar = Gtk.Button(label="Cancelar")
         cancelar.connect("clicked", lambda _: self.close())
