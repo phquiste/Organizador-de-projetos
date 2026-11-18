@@ -15,7 +15,7 @@ if [ "${1:-}" = "desinstalar" ]; then
         *) echo "Nada foi apagado."; exit 0 ;;
     esac
     [ -e "/tmp/organizador-$UID/projeto" ] && [ -x "$BIN/organizador.sh" ] && "$BIN/organizador.sh" parar
-    pkill -f organizador_tray.py 2>/dev/null
+    pkill -f "python3.*organizador_tray\.py" 2>/dev/null
     rm -f "$BIN"/organizador* \
         "$AUTOSTART/organizador-tray.desktop" \
         "${XDG_DATA_HOME:-$HOME/.local/share}/applications/local.organizador.dialogo.desktop" \
@@ -99,7 +99,7 @@ printf '%s\n' \
     > "$APPS/local.organizador.dialogo.desktop"
 
 # Reinicia a bandeja para pegar a versão nova
-pkill -f organizador_tray.py 2>/dev/null
+pkill -f "python3.*organizador_tray\.py" 2>/dev/null
 sleep 0.3
 setsid nohup "$BIN/organizador_tray.py" >/dev/null 2>&1 &
 

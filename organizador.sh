@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Uso: organizador.sh {número do cliente | nome do cliente | parar | listar | modelos}
+# Uso: organizador.sh {número do cliente | nome do cliente | parar | desfazer | listar | modelos}
 # Cria o projeto do cliente na pasta mãe (~/Trabalho por padrão), copia os modelos
 # e move os downloads para a 01_Brutos do projeto ativo.
 # Os clientes são as subpastas da pasta Modelos (ex.: "1 - Premier League").
 
-# Pasta mãe dos projetos: ~/Trabalho, ou a escolhida no menu da bandeja (guardada no arquivo abaixo)
 CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/organizador.conf"
 TRABALHO="$HOME/Trabalho"
 PASTA_INDISPONIVEL=""
@@ -16,20 +15,19 @@ if [ -r "$CONFIG" ]; then
         PASTA_INDISPONIVEL="$PASTA_ESCOLHIDA"
     fi
 fi
-# Pasta "Modelos" dentro da pasta mãe: uma subpasta por cliente, com os modelos de projeto dele.
-# O número no começo do nome ("1 - Nome") é o número do atalho de teclado; sem número, o cliente
-# só aparece no menu da bandeja. Se não houver nenhuma subpasta, usa (e cria) esta lista padrão.
+
 MODELOS="$TRABALHO/Modelos"
 CLIENTES_PADRAO=("1 - Premier League" "2 - Orlando Magic" "3 - Jr. NBA Brasil")
 ESTADO="/tmp/organizador-$UID"
 PID_FILE="$ESTADO/monitor.pid"
 INFO_FILE="$ESTADO/projeto"
 NOTIFY_FILE="$ESTADO/notificacao"
-# Atalhos de pasta que aparecem na pasta mãe enquanto um projeto está ativo
+UNDO_FILE="$ESTADO/ultimo_movido"
+SKIP_FILE="$ESTADO/ignorar_uma_vez"
+
 ATALHO_BRUTOS="$TRABALHO/📦 BRUTOS"
 ATALHO_FINAIS="$TRABALHO/✅ FINAIS"
 ATALHO_PROJETOS="$TRABALHO/🛠️ PROJETOS"
-# Nomes de versões anteriores: removidos se sobrarem (só se forem atalhos)
 ATALHOS_ANTIGOS=("$TRABALHO/📂 ARQUIVOS BRUTOS" "$TRABALHO/✅ SALVAR EXPORT" "$TRABALHO/🛠️ SALVAR PROJETO")
 TIMEOUT=10800
 IGNORAR='(/\.[^/]*|\.(crdownload|part|tmp|opdownload|download|aria2))$'
@@ -82,13 +80,19 @@ remover_atalhos() {
     done
 }
 
-# Só cria o atalho de pasta se a pasta existir; projeto retomado nunca ganha pastas novas.
 atalho() {
     [ -d "$1" ] && ln -snf "$1" "$2"
 }
 
 mover() {
-    local nome="$1" destino="$DESTINO/$1" hora
+    local nome="$1" destino="$DESTINO/$1" hora origem="$DOWNLOADS/$1" ignorar_nome=""
+    if [ -r "$SKIP_FILE" ]; then
+        IFS= read -r ignorar_nome < "$SKIP_FILE"
+        if [ "$nome" = "$ignorar_nome" ]; then
+            rm -f "$SKIP_FILE"
+            return 0
+        fi
+    fi
     if [ -e "$destino" ]; then
         printf -v hora '%(%H%M%S)T' -1
         if [[ $nome == *.* ]]; then
@@ -97,12 +101,44 @@ mover() {
             destino="$DESTINO/${nome}_$hora"
         fi
     fi
-    mv -- "$DOWNLOADS/$nome" "$destino" 2>/dev/null
+    if mv -n -- "$origem" "$destino" 2>/dev/null && [ -e "$destino" ]; then
+        printf '%s\t%s\n' "$destino" "$origem" > "$UNDO_FILE.tmp"
+        mv -f "$UNDO_FILE.tmp" "$UNDO_FILE"
+    fi
 }
 
-# Preenche CLI_ARGS (número do atalho, ou o nome se não tiver), CLI_NOMES e CLI_PASTAS com os
-# clientes: as subpastas de Modelos, numeradas primeiro (1, 2, 10...) e depois as sem número.
-# Sem nenhuma subpasta, usa a lista padrão (sem criar nada).
+desfazer_ultimo() {
+    local destino origem
+    if ! monitor_vivo; then
+        rm -f "$UNDO_FILE"
+        notificar -i dialog-information "Organizador" "Nenhum monitoramento ativo."
+        return 0
+    fi
+    if [ ! -r "$UNDO_FILE" ]; then
+        notificar -i dialog-information "Organizador" "Nenhum download recente para desfazer."
+        return 0
+    fi
+    IFS=$'\t' read -r destino origem < "$UNDO_FILE"
+    rm -f "$UNDO_FILE"
+    if [ -z "$destino" ] || [ -z "$origem" ] || [ ! -e "$destino" ]; then
+        notificar -i dialog-warning "Não foi possível desfazer" "O arquivo não está mais na pasta do projeto."
+        return 1
+    fi
+    if [ -e "$origem" ]; then
+        notificar -i dialog-warning "Não foi possível desfazer" "Já existe um arquivo com o mesmo nome em Downloads."
+        return 1
+    fi
+    printf '%s\n' "$(basename "$origem")" > "$SKIP_FILE.tmp"
+    mv -f "$SKIP_FILE.tmp" "$SKIP_FILE"
+    if mv -n -- "$destino" "$origem" 2>/dev/null && [ -e "$origem" ]; then
+        notificar -i edit-undo "Download devolvido" "$(basename "$origem")"
+    else
+        rm -f "$SKIP_FILE"
+        notificar -i dialog-error "Erro ao desfazer" "Não consegui mover $(basename "$destino") de volta."
+        return 1
+    fi
+}
+
 carregar_clientes() {
     CLI_ARGS=(); CLI_NOMES=(); CLI_PASTAS=()
     local pasta nome num
@@ -120,14 +156,12 @@ carregar_clientes() {
         if [[ $pasta =~ $padrao ]]; then
             num=$((10#${BASH_REMATCH[1]}))
             nome="${BASH_REMATCH[3]}"
-            # O 0 é reservado (parar); número repetido só vale para a primeira pasta
             if [ "$num" -eq 0 ] || [ -n "${usados[$num]:-}" ]; then num=""; else usados[$num]=1; fi
         fi
         CLI_ARGS+=("${num:-$nome}"); CLI_NOMES+=("$nome"); CLI_PASTAS+=("$pasta")
     done
 }
 
-# Uma linha por cliente: argumento, tab, nome (usado pela bandeja e pelo instalar.sh)
 listar_clientes() {
     local i
     carregar_clientes
@@ -136,7 +170,6 @@ listar_clientes() {
     done
 }
 
-# Garante a pasta Modelos e, se ela não tem nenhum cliente, cria as pastas da lista padrão.
 preparar_modelos() {
     local pasta
     mkdir -p "$MODELOS" 2>/dev/null || return 1
@@ -147,9 +180,6 @@ preparar_modelos() {
     fi
 }
 
-# Projeto novo: copia para a 02_Projetos tudo que está na pasta do cliente em Modelos.
-# O arquivo recebe o nome do projeto (se houver mais de um do mesmo tipo, o nome do projeto
-# seguido do nome original). Pastas mantêm o nome. Itens ocultos são ignorados.
 copiar_modelos() {
     local origem="$MODELOS/$PASTA_CLIENTE"
     [ -d "$origem" ] && [ -d "$PROJETO/02_Projetos" ] || return 0
@@ -200,7 +230,7 @@ monitorar() {
         [ -f "$DOWNLOADS/$arquivo" ] && mover "$arquivo"
     done
 
-    rm -f "$PID_FILE" "$INFO_FILE"
+    rm -f "$PID_FILE" "$INFO_FILE" "$UNDO_FILE" "$SKIP_FILE"
     remover_atalhos
     fechar_notificacao
     if [ "$status" -gt 128 ]; then
@@ -214,7 +244,7 @@ parar() {
     if [ -f "$PID_FILE" ] || [ -f "$INFO_FILE" ]; then
         parar_monitor
         fechar_notificacao
-        rm -f "$INFO_FILE"
+        rm -f "$INFO_FILE" "$UNDO_FILE" "$SKIP_FILE"
         remover_atalhos
         notificar -i process-stop "Monitoramento parado" "Os downloads ficam na pasta Downloads."
     else
@@ -226,12 +256,12 @@ mkdir -p -m 700 "$ESTADO"
 
 case "${1:-}" in
     0|parar|stop) parar; exit 0 ;;
+    desfazer)     desfazer_ultimo; exit $? ;;
     listar)       listar_clientes; exit 0 ;;
     modelos)      preparar_modelos && echo "$MODELOS"; exit ;;
     "")           notificar -i dialog-error "Argumento inválido" "Informe o número ou o nome do cliente."; exit 1 ;;
 esac
 
-# Acha o cliente pelo número (ou pelo nome) entre as pastas de Modelos
 carregar_clientes
 ARG="$1"
 [[ $ARG =~ ^[0-9]{1,4}$ ]] && ARG=$((10#$ARG))
@@ -262,8 +292,7 @@ if [ -n "$PASTA_INDISPONIVEL" ]; then
     notificar -i dialog-warning "Pasta mãe não encontrada" "Usando ~/Trabalho. A pasta escolhida era: $PASTA_INDISPONIVEL"
 fi
 mkdir -p "$TRABALHO"
-# GNOME usa a janela nativa (GTK4/libadwaita); o resto usa Qt.
-# Código 2 = faltam as bibliotecas da janela, então tenta a próxima.
+
 STATUS=2
 if [[ ${XDG_CURRENT_DESKTOP:-} == *GNOME* ]]; then
     RESULTADO=$(python3 "$AQUI/organizador_dialog_gtk.py" "$CLIENTE" "$TRABALHO")
@@ -297,18 +326,17 @@ case "$TIPO" in
     *) exit 0 ;;
 esac
 
-# Downloads vão para a 01_Brutos; se ela não existir (projeto antigo), para a raiz do projeto
 DESTINO="$PROJETO"
 [ -d "$PROJETO/01_Brutos" ] && DESTINO="$PROJETO/01_Brutos"
 
 parar_monitor
 fechar_notificacao
+rm -f "$UNDO_FILE" "$SKIP_FILE"
 remover_atalhos
 atalho "$DESTINO" "$ATALHO_BRUTOS"
 atalho "$PROJETO/03_Exports" "$ATALHO_FINAIS"
 atalho "$PROJETO/02_Projetos" "$ATALHO_PROJETOS"
 
-# Escrita atômica: a bandeja nunca lê o arquivo pela metade
 basename "$PROJETO" > "$INFO_FILE.tmp"
 mv -f "$INFO_FILE.tmp" "$INFO_FILE"
 

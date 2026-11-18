@@ -25,7 +25,7 @@ def seguir_tema_gnome():
     """Fora do GNOME não faz nada. No GNOME, pede ao Qt o mesmo tema claro/escuro do sistema."""
     if "GNOME" not in os.environ.get("XDG_CURRENT_DESKTOP", ""):
         return
-    os.environ.setdefault("QT_WAYLAND_DECORATION", "adwaita")  # usa se qadwaitadecorations estiver instalado
+    os.environ.setdefault("QT_WAYLAND_DECORATION", "adwaita")
 
 
 def aplicar_esquema(app):
@@ -38,7 +38,7 @@ def aplicar_esquema(app):
         ).stdout
     except (OSError, subprocess.SubprocessError):
         return
-    if hasattr(app.styleHints(), "setColorScheme"):  # Qt 6.8+
+    if hasattr(app.styleHints(), "setColorScheme"):
         escuro = "prefer-dark" in saida
         app.styleHints().setColorScheme(Qt.ColorScheme.Dark if escuro else Qt.ColorScheme.Light)
 
@@ -56,12 +56,36 @@ def eh_do_cliente(pasta, cliente):
     return (nome + " ").startswith(normalizar(cliente) + " ")
 
 
+def ultima_atividade(pasta):
+    """Timestamp mais recente entre a pasta do projeto, subpastas e seus arquivos."""
+    try:
+        mais_recente = pasta.stat().st_mtime
+        for raiz, dirs, arqs in os.walk(pasta):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for nome in (*dirs, *arqs):
+                if nome.startswith("."):
+                    continue
+                try:
+                    mtime = os.stat(os.path.join(raiz, nome)).st_mtime
+                    if mtime > mais_recente:
+                        mais_recente = mtime
+                except OSError:
+                    pass
+        return mais_recente
+    except OSError:
+        return 0.0
+
+
 def listar_projetos(cliente, trabalho):
-    pastas = (
-        p.name for p in trabalho.iterdir()
-        if p.is_dir() and not p.name.startswith(".") and eh_do_cliente(p.name, cliente)
-    )
-    return sorted(pastas, reverse=True)
+    try:
+        pastas = [
+            p for p in trabalho.iterdir()
+            if p.is_dir() and not p.name.startswith(".") and eh_do_cliente(p.name, cliente)
+        ]
+    except OSError:
+        return []
+    pastas.sort(key=lambda p: (ultima_atividade(p), p.name), reverse=True)
+    return [p.name for p in pastas]
 
 
 def separar_nome(pasta):
@@ -71,18 +95,20 @@ def separar_nome(pasta):
 
 
 class Campo(QLineEdit):
-    """Campo de texto onde a seta para baixo passa o foco para a lista."""
+    """Campo de texto onde a seta para baixo passa o foco para o primeiro item visível da lista."""
 
     def __init__(self, lista):
         super().__init__()
         self.lista = lista
 
     def keyPressEvent(self, evento):
-        if evento.key() == Qt.Key.Key_Down and self.lista.count():
-            self.lista.setFocus()
-            self.lista.setCurrentRow(0)
-        else:
-            super().keyPressEvent(evento)
+        if evento.key() == Qt.Key.Key_Down:
+            for row in range(self.lista.count()):
+                if not self.lista.item(row).isHidden():
+                    self.lista.setFocus()
+                    self.lista.setCurrentRow(row)
+                    return
+        super().keyPressEvent(evento)
 
 
 def main():
@@ -92,9 +118,7 @@ def main():
     seguir_tema_gnome()
     app = QApplication(sys.argv)
     aplicar_esquema(app)
-    # No Wayland o ícone vem do .desktop com este nome (criado pelo instalar.sh)
     app.setDesktopFileName("local.organizador.dialogo")
-    # Ícone da janela: sem isso, o X11 mostra um "X" genérico
     icone = QIcon.fromTheme("folder", QIcon.fromTheme("inode-directory"))
     app.setWindowIcon(icone)
     dialogo = QDialog()
@@ -107,9 +131,10 @@ def main():
         data, nome = separar_nome(pasta)
         item = QListWidgetItem(f"{nome}\n{data}" if data else nome)
         item.setData(Qt.ItemDataRole.UserRole, pasta)
+        item.setData(Qt.ItemDataRole.UserRole + 1, normalizar(f"{nome} {data}"))
         lista.addItem(item)
     campo = Campo(lista)
-    campo.setPlaceholderText("Nome do projeto")
+    campo.setPlaceholderText("Nome do projeto ou filtrar existentes")
 
     botoes = QDialogButtonBox(
         QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -117,17 +142,38 @@ def main():
     botoes.button(QDialogButtonBox.StandardButton.Ok).setText("Confirmar")
     botoes.button(QDialogButtonBox.StandardButton.Cancel).setText("Cancelar")
 
+    rotulo_retomar = QLabel("Retomar projeto")
     layout = QVBoxLayout(dialogo)
     layout.setSpacing(8)
     layout.addWidget(QLabel("Novo projeto"))
     layout.addWidget(campo)
     if projetos:
-        layout.addWidget(QLabel("Retomar projeto"))
+        layout.addWidget(rotulo_retomar)
         layout.addWidget(lista)
     layout.addWidget(botoes)
     lista.setVisible(bool(projetos))
 
     escolha = []
+
+    def filtrar_lista(texto):
+        termo = normalizar(texto)
+        if termo:
+            lista.clearSelection()
+        visiveis = 0
+        for row in range(lista.count()):
+            item = lista.item(row)
+            combina = not termo or termo in item.data(Qt.ItemDataRole.UserRole + 1)
+            item.setHidden(not combina)
+            if combina:
+                visiveis += 1
+        rotulo_retomar.setVisible(bool(projetos) and visiveis > 0)
+        lista.setVisible(bool(projetos) and visiveis > 0)
+
+    def ao_selecionar_lista():
+        if lista.selectedItems() and campo.text():
+            campo.blockSignals(True)
+            campo.clear()
+            campo.blockSignals(False)
 
     def aceitar():
         nome = campo.text().replace("/", "-").replace(":", "-").strip()
@@ -139,8 +185,8 @@ def main():
             return
         dialogo.accept()
 
-    campo.textChanged.connect(lambda texto: texto.strip() and lista.clearSelection())
-    lista.itemSelectionChanged.connect(lambda: lista.selectedItems() and campo.clear())
+    campo.textChanged.connect(filtrar_lista)
+    lista.itemSelectionChanged.connect(ao_selecionar_lista)
     lista.itemDoubleClicked.connect(lambda _: aceitar())
     botoes.accepted.connect(aceitar)
     botoes.rejected.connect(dialogo.reject)

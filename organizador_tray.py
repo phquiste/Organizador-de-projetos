@@ -7,17 +7,17 @@ import sys
 from pathlib import Path
 
 from PyQt6.QtCore import QFileSystemWatcher, QLockFile, QTimer, Qt
-from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPen, QPixmap
+from PyQt6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu, QSystemTrayIcon
 
 ESTADO = Path(f"/tmp/organizador-{os.getuid()}")
 INFO_FILE = ESTADO / "projeto"
 PID_FILE = ESTADO / "monitor.pid"
 NOTIFY_FILE = ESTADO / "notificacao"
+UNDO_FILE = ESTADO / "ultimo_movido"
 LOCK_FILE = ESTADO / "bandeja.lock"
 PADRAO = Path.home() / "Trabalho"
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "organizador.conf"
-# Atalhos de pasta criados pelo organizador.sh (e os nomes de versões anteriores, para limpar se sobrarem)
 ATALHOS = ("📦 BRUTOS", "✅ FINAIS", "🛠️ PROJETOS")
 ATALHOS_ANTIGOS = ("📂 ARQUIVOS BRUTOS", "✅ SALVAR EXPORT", "🛠️ SALVAR PROJETO")
 
@@ -52,7 +52,7 @@ def monitor_vivo():
 def limpar_estado_orfao():
     if monitor_vivo():
         return
-    for arquivo in (PID_FILE, INFO_FILE, NOTIFY_FILE):
+    for arquivo in (PID_FILE, INFO_FILE, NOTIFY_FILE, UNDO_FILE):
         arquivo.unlink(missing_ok=True)
     for nome in ATALHOS + ATALHOS_ANTIGOS:
         atalho = pasta_mae() / nome
@@ -73,7 +73,6 @@ def icone_status(cor):
     pixmap.fill(Qt.GlobalColor.transparent)
     pintor = QPainter(pixmap)
     pintor.setRenderHint(QPainter.RenderHint.Antialiasing)
-    # O círculo ocupa o ícone todo: o contorno (4 px) é centrado na borda, então o retângulo recua 2 px
     pintor.setPen(QPen(QColor(cor).darker(130), 4))
     pintor.setBrush(QColor(cor))
     pintor.drawEllipse(2, 2, 124, 124)
@@ -120,29 +119,24 @@ class Bandeja(QSystemTrayIcon):
         self.icone_ocioso = icone_status("#8b949e")
         self.icone_ativo = icone_status("#2ea44f")
 
-        # Um único menu, remontado a cada mudança. Trocar de menu com o ícone
-        # visível não é repassado pelo GNOME, e o menu ficava desatualizado.
         self.menu = QMenu()
         self.setContextMenu(self.menu)
         self.activated.connect(self.ao_clicar)
 
-        # Observa a pasta de estado, a pasta mãe e a Modelos (a lista de clientes vem dela).
-        # Elas quase nunca mudam, então não gasta CPU à toa
         self.observador = QFileSystemWatcher([str(ESTADO)], self)
         self.observador.directoryChanged.connect(self.ao_mudar_pasta)
-        # Mudanças em Modelos podem vir em rajada (criar, renomear): espera um pouco antes de reler
         self.timer_clientes = QTimer(self)
         self.timer_clientes.setSingleShot(True)
         self.timer_clientes.setInterval(500)
         self.timer_clientes.timeout.connect(self.atualizar_clientes)
 
         self.projeto = self._ler_projeto()
+        self.tem_desfazer = self._ler_desfazer()
         self.clientes = ler_clientes()
         self._vigiar_pastas()
         self._aplicar()
 
     def _vigiar_pastas(self):
-        """Observa a pasta de estado, a pasta mãe e a Modelos (as que existirem)."""
         desejadas = {str(ESTADO)} | {str(p) for p in (pasta_mae(), pasta_mae() / "Modelos") if p.is_dir()}
         atuais = set(self.observador.directories())
         if atuais - desejadas:
@@ -170,10 +164,22 @@ class Bandeja(QSystemTrayIcon):
         except OSError:
             return ""
 
+    @staticmethod
+    def _ler_desfazer():
+        if not monitor_vivo():
+            return False
+        try:
+            destino, _, _ = UNDO_FILE.read_text(encoding="utf-8").strip().partition("\t")
+            return bool(destino) and Path(destino).exists()
+        except OSError:
+            return False
+
     def atualizar(self):
         projeto = self._ler_projeto()
-        if projeto != self.projeto:
+        tem_desfazer = self._ler_desfazer()
+        if projeto != self.projeto or tem_desfazer != self.tem_desfazer:
             self.projeto = projeto
+            self.tem_desfazer = tem_desfazer
             self._aplicar()
 
     def _acao(self, texto, funcao, icone=None, ativa=True):
@@ -196,17 +202,23 @@ class Bandeja(QSystemTrayIcon):
         else:
             self.setIcon(self.icone_ocioso)
             self.setToolTip("Organizador: ocioso")
+
         for arg, nome in self.clientes:
             self._acao(nome, lambda a=arg: self.executar(a))
+
         self.menu.addSeparator()
+
         if self.projeto:
             self._acao("Parar monitoramento", lambda: self.executar("parar"), "media-playback-stop")
+            if self.tem_desfazer:
+                self._acao("Desfazer último", lambda: self.executar("desfazer"), "edit-undo")
+            self.menu.addSeparator()
+
         self._acao("Abrir pasta Modelos", self.abrir_modelos, "folder-open")
         self._acao("Pasta mãe dos projetos", self.trocar_pasta, "folder")
         self._acao("Sair da bandeja", QApplication.quit, "application-exit")
 
     def ao_clicar(self, motivo):
-        # No GNOME o clique esquerdo só abre o menu (limitação da extensão)
         gatilhos = (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.MiddleClick)
         if self.projeto and motivo in gatilhos:
             self.abrir_pasta()
@@ -223,7 +235,6 @@ class Bandeja(QSystemTrayIcon):
         if script is None:
             notificar("organizador.sh não encontrado", "Rode o instalar.sh de novo.", "dialog-error")
             return
-        # O script cria a pasta Modelos (e as pastas dos clientes, se não houver nenhuma) e diz onde ela está
         try:
             saida = subprocess.run([str(script), "modelos"], capture_output=True, text=True, timeout=10).stdout.strip()
         except (OSError, subprocess.SubprocessError):
@@ -276,7 +287,6 @@ def main():
     app.setQuitOnLastWindowClosed(False)
     bandeja = Bandeja()
     bandeja.show()
-    # No login a bandeja do desktop pode demorar a carregar: espera antes de avisar
     QTimer.singleShot(15000, avisar_se_sem_bandeja)
     sys.exit(app.exec())
 
