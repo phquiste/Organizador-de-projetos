@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Uso: organizador.sh {1|2|3|parar}
+# Uso: organizador.sh {número do cliente | nome do cliente | parar | listar | modelos}
 # Cria o projeto do cliente na pasta mãe (~/Trabalho por padrão), copia os modelos
 # e move os downloads para a 01_Brutos do projeto ativo.
+# Os clientes são as subpastas da pasta Modelos (ex.: "1 - Premier League").
 
 # Pasta mãe dos projetos: ~/Trabalho, ou a escolhida no menu da bandeja (guardada no arquivo abaixo)
 CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/organizador.conf"
@@ -15,8 +16,11 @@ if [ -r "$CONFIG" ]; then
         PASTA_INDISPONIVEL="$PASTA_ESCOLHIDA"
     fi
 fi
-# Modelos de projeto: pasta "Modelos" dentro da pasta mãe (criada quando preciso)
+# Pasta "Modelos" dentro da pasta mãe: uma subpasta por cliente, com os modelos de projeto dele.
+# O número no começo do nome ("1 - Nome") é o número do atalho de teclado; sem número, o cliente
+# só aparece no menu da bandeja. Se não houver nenhuma subpasta, usa (e cria) esta lista padrão.
 MODELOS="$TRABALHO/Modelos"
+CLIENTES_PADRAO=("1 - Premier League" "2 - Orlando Magic" "3 - Jr. NBA Brasil")
 ESTADO="/tmp/organizador-$UID"
 PID_FILE="$ESTADO/monitor.pid"
 INFO_FILE="$ESTADO/projeto"
@@ -96,27 +100,76 @@ mover() {
     mv -- "$DOWNLOADS/$nome" "$destino" 2>/dev/null
 }
 
-# Projeto novo: copia para a 02_Projetos tudo da pasta Modelos cujo nome contém o nome do cliente.
-# Caixa, acento e _ - . não importam. Arquivos e pastas inteiras; itens ocultos são ignorados.
+# Preenche CLI_ARGS (número do atalho, ou o nome se não tiver), CLI_NOMES e CLI_PASTAS com os
+# clientes: as subpastas de Modelos, numeradas primeiro (1, 2, 10...) e depois as sem número.
+# Sem nenhuma subpasta, usa a lista padrão (sem criar nada).
+carregar_clientes() {
+    CLI_ARGS=(); CLI_NOMES=(); CLI_PASTAS=()
+    local pasta nome num
+    local -a achadas=()
+    local -A usados=()
+    local padrao='^([0-9]{1,4})[[:space:]]+(-|–|—)[[:space:]]+(.+)$'
+    if [ -d "$MODELOS" ]; then
+        while IFS= read -r -d '' pasta; do
+            achadas+=("${pasta##*/}")
+        done < <(find "$MODELOS" -mindepth 1 -maxdepth 1 -type d ! -name '.*' -print0 | LC_ALL=C sort -z -V)
+    fi
+    [ "${#achadas[@]}" -gt 0 ] || achadas=("${CLIENTES_PADRAO[@]}")
+    for pasta in "${achadas[@]}"; do
+        nome="$pasta"; num=""
+        if [[ $pasta =~ $padrao ]]; then
+            num=$((10#${BASH_REMATCH[1]}))
+            nome="${BASH_REMATCH[3]}"
+            # O 0 é reservado (parar); número repetido só vale para a primeira pasta
+            if [ "$num" -eq 0 ] || [ -n "${usados[$num]:-}" ]; then num=""; else usados[$num]=1; fi
+        fi
+        CLI_ARGS+=("${num:-$nome}"); CLI_NOMES+=("$nome"); CLI_PASTAS+=("$pasta")
+    done
+}
+
+# Uma linha por cliente: argumento, tab, nome (usado pela bandeja e pelo instalar.sh)
+listar_clientes() {
+    local i
+    carregar_clientes
+    for i in "${!CLI_ARGS[@]}"; do
+        printf '%s\t%s\n' "${CLI_ARGS[i]}" "${CLI_NOMES[i]}"
+    done
+}
+
+# Garante a pasta Modelos e, se ela não tem nenhum cliente, cria as pastas da lista padrão.
+preparar_modelos() {
+    local pasta
+    mkdir -p "$MODELOS" 2>/dev/null || return 1
+    if [ -z "$(find "$MODELOS" -mindepth 1 -maxdepth 1 -type d ! -name '.*' -print -quit)" ]; then
+        for pasta in "${CLIENTES_PADRAO[@]}"; do
+            mkdir -p "$MODELOS/$pasta"
+        done
+    fi
+}
+
+# Projeto novo: copia para a 02_Projetos tudo que está na pasta do cliente em Modelos.
+# O arquivo recebe o nome do projeto (se houver mais de um do mesmo tipo, o nome do projeto
+# seguido do nome original). Pastas mantêm o nome. Itens ocultos são ignorados.
 copiar_modelos() {
-    mkdir -p "$MODELOS" 2>/dev/null
-    [ -d "$MODELOS" ] && [ -d "$PROJETO/02_Projetos" ] || return 0
-    python3 - "$MODELOS" "$PROJETO/02_Projetos" "$CLIENTE" <<'PY' ||
-import re, shutil, sys, unicodedata
+    local origem="$MODELOS/$PASTA_CLIENTE"
+    [ -d "$origem" ] && [ -d "$PROJETO/02_Projetos" ] || return 0
+    python3 - "$origem" "$PROJETO/02_Projetos" "$(basename "$PROJETO")" <<'PY' ||
+import shutil, sys
+from collections import Counter
 from pathlib import Path
 
-def normalizar(texto):
-    texto = unicodedata.normalize("NFKD", texto).casefold()
-    texto = "".join(c for c in texto if not unicodedata.combining(c))
-    return re.sub(r"[\W_]+", " ", texto).strip()
-
-origem, destino, cliente = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
-chave = f" {normalizar(cliente)} "
+origem, destino, projeto = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+itens = [i for i in sorted(origem.iterdir()) if not i.name.startswith(".")]
+tipos = Counter(i.suffix.casefold() for i in itens if not i.is_dir())
 falhou = False
-for item in sorted(origem.iterdir()):
-    if item.name.startswith(".") or chave not in f" {normalizar(item.name)} ":
-        continue
-    alvo = destino / item.name
+for item in itens:
+    if item.is_dir():
+        nome = item.name
+    elif tipos[item.suffix.casefold()] == 1:
+        nome = projeto + item.suffix
+    else:
+        nome = f"{projeto} - {item.stem}{item.suffix}"
+    alvo = destino / nome
     if alvo.exists():
         continue
     try:
@@ -172,12 +225,28 @@ parar() {
 mkdir -p -m 700 "$ESTADO"
 
 case "${1:-}" in
-    1|premier)    CLIENTE="Premier League" ;;
-    2|magic)      CLIENTE="Orlando Magic" ;;
-    3|jrnba)      CLIENTE="Jr. NBA Brasil" ;;
     0|parar|stop) parar; exit 0 ;;
-    *)            notificar -i dialog-error "Argumento inválido" "${1:-}"; exit 1 ;;
+    listar)       listar_clientes; exit 0 ;;
+    modelos)      preparar_modelos && echo "$MODELOS"; exit ;;
+    "")           notificar -i dialog-error "Argumento inválido" "Informe o número ou o nome do cliente."; exit 1 ;;
 esac
+
+# Acha o cliente pelo número (ou pelo nome) entre as pastas de Modelos
+carregar_clientes
+ARG="$1"
+[[ $ARG =~ ^[0-9]{1,4}$ ]] && ARG=$((10#$ARG))
+CLIENTE=""
+for i in "${!CLI_ARGS[@]}"; do
+    if [ "${CLI_ARGS[i]}" = "$ARG" ] || [ "${CLI_NOMES[i]}" = "$1" ]; then
+        CLIENTE="${CLI_NOMES[i]}"
+        PASTA_CLIENTE="${CLI_PASTAS[i]}"
+        break
+    fi
+done
+if [ -z "$CLIENTE" ]; then
+    notificar -i dialog-error "Cliente não encontrado" "$1 (veja as pastas em $MODELOS)"
+    exit 1
+fi
 
 if ! command -v inotifywait >/dev/null; then
     notificar -i dialog-error "Falta o inotify-tools" "Veja o README."
@@ -221,6 +290,7 @@ case "$TIPO" in
         printf -v DATA '%(%y-%m-%d)T' -1
         PROJETO="$TRABALHO/$DATA - $CLIENTE - $VALOR"
         mkdir -p "$PROJETO"/{01_Brutos,02_Projetos,03_Exports}
+        preparar_modelos
         copiar_modelos
         ;;
     EXISTENTE) PROJETO="$TRABALHO/$VALOR" ;;

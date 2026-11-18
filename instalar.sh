@@ -6,6 +6,27 @@ set -u
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN="$HOME/.local/bin"
 AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
+if [ "${1:-}" = "desinstalar" ]; then
+    echo "Isto apaga o programa: os arquivos de $BIN, o início automático e as configurações."
+    echo "Seus projetos e a pasta Modelos não são tocados."
+    read -r -p "Desinstalar agora? [s/N] " resposta
+    case "$resposta" in
+        s|S) ;;
+        *) echo "Nada foi apagado."; exit 0 ;;
+    esac
+    [ -e "/tmp/organizador-$UID/projeto" ] && [ -x "$BIN/organizador.sh" ] && "$BIN/organizador.sh" parar
+    pkill -f organizador_tray.py 2>/dev/null
+    rm -f "$BIN"/organizador* \
+        "$AUTOSTART/organizador-tray.desktop" \
+        "${XDG_DATA_HOME:-$HOME/.local/share}/applications/local.organizador.dialogo.desktop" \
+        "${XDG_CONFIG_HOME:-$HOME/.config}/organizador.conf"
+    rm -rf "/tmp/organizador-$UID"
+    echo
+    echo "Desinstalado."
+    echo "Falta só apagar, nas configurações de teclado, os atalhos de teclado que você criou para o organizador."
+    exit 0
+fi
+
 ARQUIVOS=(organizador.sh organizador_dialog.py organizador_dialog_gtk.py organizador_tray.py)
 
 for f in "${ARQUIVOS[@]}"; do
@@ -92,7 +113,9 @@ esac
 
 echo
 echo "Pronto. Comandos para os atalhos de teclado (servem no GNOME e no KDE; cole exatamente assim, sem aspas):"
-echo "  Premier League : $BIN/organizador.sh 1"
-echo "  Orlando Magic  : $BIN/organizador.sh 2"
-echo "  Jr. NBA Brasil : $BIN/organizador.sh 3"
-echo "  Parar          : $BIN/organizador.sh parar"
+while IFS=$'\t' read -r numero nome; do
+    [[ $numero =~ ^[0-9]+$ ]] && echo "  $nome : $BIN/organizador.sh $numero"
+done < <("$BIN/organizador.sh" listar 2>/dev/null)
+echo "  Parar : $BIN/organizador.sh parar"
+echo
+echo "Clientes novos: crie uma pasta dentro de Modelos, com o próximo número (veja o README)."

@@ -20,7 +20,6 @@ CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "o
 # Atalhos de pasta criados pelo organizador.sh (e os nomes de versões anteriores, para limpar se sobrarem)
 ATALHOS = ("📦 BRUTOS", "✅ FINAIS", "🛠️ PROJETOS")
 ATALHOS_ANTIGOS = ("📂 ARQUIVOS BRUTOS", "✅ SALVAR EXPORT", "🛠️ SALVAR PROJETO")
-CLIENTES = (("Premier League", "1"), ("Orlando Magic", "2"), ("Jr. NBA Brasil", "3"))
 
 
 def notificar(titulo, texto="", icone="dialog-information"):
@@ -89,6 +88,23 @@ def localizar_script():
     return next((c for c in candidatos if c.is_file()), None)
 
 
+def ler_clientes():
+    """Clientes [(argumento, nome)], na ordem do menu. Quem lê as pastas de Modelos é o organizador.sh."""
+    script = localizar_script()
+    if script is None:
+        return []
+    try:
+        saida = subprocess.run([str(script), "listar"], capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    clientes = []
+    for linha in saida.splitlines():
+        arg, _, nome = linha.partition("\t")
+        if arg and nome:
+            clientes.append((arg, nome))
+    return clientes
+
+
 def avisar_se_sem_bandeja():
     if not QSystemTrayIcon.isSystemTrayAvailable():
         notificar(
@@ -110,12 +126,42 @@ class Bandeja(QSystemTrayIcon):
         self.setContextMenu(self.menu)
         self.activated.connect(self.ao_clicar)
 
-        # Observa só a pasta de estado: ela quase nunca muda, então não gasta CPU à toa
+        # Observa a pasta de estado, a pasta mãe e a Modelos (a lista de clientes vem dela).
+        # Elas quase nunca mudam, então não gasta CPU à toa
         self.observador = QFileSystemWatcher([str(ESTADO)], self)
-        self.observador.directoryChanged.connect(self.atualizar)
+        self.observador.directoryChanged.connect(self.ao_mudar_pasta)
+        # Mudanças em Modelos podem vir em rajada (criar, renomear): espera um pouco antes de reler
+        self.timer_clientes = QTimer(self)
+        self.timer_clientes.setSingleShot(True)
+        self.timer_clientes.setInterval(500)
+        self.timer_clientes.timeout.connect(self.atualizar_clientes)
 
         self.projeto = self._ler_projeto()
+        self.clientes = ler_clientes()
+        self._vigiar_pastas()
         self._aplicar()
+
+    def _vigiar_pastas(self):
+        """Observa a pasta de estado, a pasta mãe e a Modelos (as que existirem)."""
+        desejadas = {str(ESTADO)} | {str(p) for p in (pasta_mae(), pasta_mae() / "Modelos") if p.is_dir()}
+        atuais = set(self.observador.directories())
+        if atuais - desejadas:
+            self.observador.removePaths(list(atuais - desejadas))
+        if desejadas - atuais:
+            self.observador.addPaths(list(desejadas - atuais))
+
+    def ao_mudar_pasta(self, caminho):
+        if caminho == str(ESTADO):
+            self.atualizar()
+        else:
+            self.timer_clientes.start()
+
+    def atualizar_clientes(self):
+        self._vigiar_pastas()
+        clientes = ler_clientes()
+        if clientes != self.clientes:
+            self.clientes = clientes
+            self._aplicar()
 
     @staticmethod
     def _ler_projeto():
@@ -150,7 +196,7 @@ class Bandeja(QSystemTrayIcon):
         else:
             self.setIcon(self.icone_ocioso)
             self.setToolTip("Organizador: ocioso")
-        for nome, arg in CLIENTES:
+        for arg, nome in self.clientes:
             self._acao(nome, lambda a=arg: self.executar(a))
         self.menu.addSeparator()
         if self.projeto:
@@ -173,11 +219,18 @@ class Bandeja(QSystemTrayIcon):
         abrir_no_gerenciador(pasta)
 
     def abrir_modelos(self):
-        pasta = pasta_mae() / "Modelos"
+        script = localizar_script()
+        if script is None:
+            notificar("organizador.sh não encontrado", "Rode o instalar.sh de novo.", "dialog-error")
+            return
+        # O script cria a pasta Modelos (e as pastas dos clientes, se não houver nenhuma) e diz onde ela está
         try:
-            pasta.mkdir(parents=True, exist_ok=True)
-        except OSError:
-            notificar("Não consegui criar a pasta Modelos", str(pasta), "dialog-error")
+            saida = subprocess.run([str(script), "modelos"], capture_output=True, text=True, timeout=10).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            saida = ""
+        pasta = Path(saida) if saida else None
+        if pasta is None or not pasta.is_dir():
+            notificar("Não consegui criar a pasta Modelos", str(pasta_mae() / "Modelos"), "dialog-error")
             return
         abrir_no_gerenciador(pasta)
 
@@ -200,6 +253,7 @@ class Bandeja(QSystemTrayIcon):
             notificar("Não consegui salvar a pasta", str(CONFIG), "dialog-error")
             return
         notificar("Pasta mãe alterada", escolhida, "folder")
+        self.atualizar_clientes()
 
     def executar(self, arg):
         script = localizar_script()
