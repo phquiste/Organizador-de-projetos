@@ -17,7 +17,9 @@ NOTIFY_FILE = ESTADO / "notificacao"
 LOCK_FILE = ESTADO / "bandeja.lock"
 PADRAO = Path.home() / "Trabalho"
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "organizador.conf"
-ATALHOS = ("🛠️ SALVAR PROJETO", "✅ SALVAR EXPORT", "📂 ARQUIVOS BRUTOS")
+# Atalhos de pasta criados pelo organizador.sh (e os nomes de versões anteriores, para limpar se sobrarem)
+ATALHOS = ("📦 BRUTOS", "✅ FINAIS", "🛠️ PROJETOS")
+ATALHOS_ANTIGOS = ("📂 ARQUIVOS BRUTOS", "✅ SALVAR EXPORT", "🛠️ SALVAR PROJETO")
 CLIENTES = (("Premier League", "1"), ("Orlando Magic", "2"), ("Jr. NBA Brasil", "3"))
 
 
@@ -53,10 +55,18 @@ def limpar_estado_orfao():
         return
     for arquivo in (PID_FILE, INFO_FILE, NOTIFY_FILE):
         arquivo.unlink(missing_ok=True)
-    for nome in ATALHOS:
+    for nome in ATALHOS + ATALHOS_ANTIGOS:
         atalho = pasta_mae() / nome
         if atalho.is_symlink():
             atalho.unlink()
+
+
+def abrir_no_gerenciador(pasta):
+    ambiente = {
+        k: v for k, v in os.environ.items()
+        if k not in ("LD_LIBRARY_PATH", "QT_PLUGIN_PATH", "QML2_IMPORT_PATH")
+    }
+    subprocess.Popen(["xdg-open", str(pasta)], env=ambiente, start_new_session=True)
 
 
 def icone_status(cor):
@@ -145,6 +155,7 @@ class Bandeja(QSystemTrayIcon):
         self.menu.addSeparator()
         if self.projeto:
             self._acao("Parar monitoramento", lambda: self.executar("parar"), "media-playback-stop")
+        self._acao("Abrir pasta Modelos", self.abrir_modelos, "folder-open")
         self._acao("Pasta mãe dos projetos", self.trocar_pasta, "folder")
         self._acao("Sair da bandeja", QApplication.quit, "application-exit")
 
@@ -159,11 +170,16 @@ class Bandeja(QSystemTrayIcon):
         if not pasta.is_dir():
             notificar("Pasta não encontrada", str(pasta), "dialog-warning")
             return
-        ambiente = {
-            k: v for k, v in os.environ.items()
-            if k not in ("LD_LIBRARY_PATH", "QT_PLUGIN_PATH", "QML2_IMPORT_PATH")
-        }
-        subprocess.Popen(["xdg-open", str(pasta)], env=ambiente, start_new_session=True)
+        abrir_no_gerenciador(pasta)
+
+    def abrir_modelos(self):
+        pasta = pasta_mae() / "Modelos"
+        try:
+            pasta.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            notificar("Não consegui criar a pasta Modelos", str(pasta), "dialog-error")
+            return
+        abrir_no_gerenciador(pasta)
 
     def trocar_pasta(self):
         if self.projeto:

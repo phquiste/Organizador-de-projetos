@@ -1,16 +1,24 @@
 # Organizador de projetos
 
-Cria a pasta de cada projeto, move os downloads para o lugar certo e deixa atalhos para salvar projeto, salvar export e abrir os brutos. Funciona em qualquer distro e ambiente gráfico (GNOME, KDE, XFCE...).
+Cria a pasta de cada projeto, move os downloads para o lugar certo, copia os modelos do cliente e deixa atalhos de pasta para os brutos, os projetos e os finais. Funciona em qualquer distro e ambiente gráfico (GNOME, KDE, XFCE...).
 
 ## O que ele faz
 
-Ao apertar o atalho de um cliente, abre uma janela para criar um projeto novo ou retomar um antigo. No GNOME a janela é nativa (libadwaita, com tema claro/escuro e cor de destaque do sistema). Nos outros ambientes usa o visual nativo do Qt.
+Ao apertar o atalho de teclado de um cliente, abre uma janela para criar um projeto novo ou retomar um antigo. No GNOME a janela é nativa (libadwaita, com tema claro/escuro e cor de destaque do sistema). Nos outros ambientes usa o visual nativo do Qt.
 
 Todo projeto novo, de qualquer cliente, ganha as mesmas três subpastas: `01_Brutos` (downloads, movidos sozinhos assim que terminam), `02_Projetos` e `03_Exports`.
 
-Os projetos ficam em `~/Trabalho/` (a "pasta mãe"), a menos que você escolha outra (veja **Trocar a pasta mãe**). Enquanto o projeto está ativo, aparecem direto na pasta mãe os atalhos `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT` e `📂 ARQUIVOS BRUTOS`. Este último leva para onde os downloads caem, a `01_Brutos`. Use-o para indicar os brutos no Photoshop e em outros programas. Os atalhos somem quando o monitor para.
+Os projetos ficam em `~/Trabalho/` (a "pasta mãe"), a menos que você escolha outra (veja **Trocar a pasta mãe**). Enquanto o projeto está ativo, aparecem direto na pasta mãe três atalhos de pasta:
 
-Projeto retomado não é alterado: nenhuma pasta é criada ou recriada. Se a `01_Brutos` não existir mais, os downloads vão para a raiz do projeto. Um atalho só é criado se a pasta de destino existir.
+| Atalho de pasta | Leva para | Use para |
+| :--- | :--- | :--- |
+| `📦 BRUTOS` | `01_Brutos`, onde os downloads caem | Indicar os brutos no Photoshop e em outros programas |
+| `✅ FINAIS` | `03_Exports` | Salvar o export |
+| `🛠️ PROJETOS` | `02_Projetos` | Salvar o projeto |
+
+Os atalhos de pasta somem quando o monitor para.
+
+Projeto retomado não é alterado: nenhuma pasta é criada ou recriada. Se a `01_Brutos` não existir mais, os downloads vão para a raiz do projeto. Um atalho de pasta só é criado se a pasta de destino existir.
 
 ## Instalar
 
@@ -60,6 +68,26 @@ Por que o caminho completo: GNOME e KDE não interpretam `$HOME`, `~` nem aspas 
 
 **Outros ambientes:** procure em Configurações → Teclado a opção de atalho personalizado.
 
+## Uso
+
+1. Aperte o atalho de teclado do cliente, ou clique na bolinha e escolha o cliente.
+2. Digite o nome de um projeto novo e aperte `Enter`, ou use `↓` para escolher um antigo e aperte `Enter`.
+3. Tudo que você baixar vai para o projeto ativo. Para salvar e importar arquivos, use os atalhos de pasta da pasta mãe: `📦 BRUTOS`, `✅ FINAIS` e `🛠️ PROJETOS`.
+
+Bolinha cinza: nenhum projeto ativo. Verde: projeto ativo.
+
+## Modelos de projeto
+
+Dentro da pasta mãe existe uma pasta chamada `Modelos` (`~/Trabalho/Modelos` por padrão). Coloque nela os seus projetos modelo, de qualquer programa (`.psd`, `.fcproj` etc.), em arquivos ou em pastas inteiras.
+
+Ao criar um projeto **novo**, o programa copia para a `02_Projetos` os modelos cujo nome contém o nome do cliente: `Premier League`, `Orlando Magic` ou `Jr. NBA Brasil`. Maiúsculas, acentos e os caracteres `_`, `-` e `.` não importam, então `Premier_League.fcproj` serve para a Premier League. Se mais de um modelo combinar, todos são copiados, com o nome original e sem mudar o conteúdo.
+
+- Só entram os itens que ficam direto dentro da `Modelos`. Pastas são copiadas inteiras. Itens com nome começando por ponto (ocultos) são ignorados.
+- Projeto retomado nunca recebe modelos.
+- O programa nunca altera nem apaga nada na `Modelos`.
+- Para abrir a pasta: clique na bolinha e escolha **Abrir pasta Modelos**. Se ela ainda não existir, é criada na hora.
+- Se você trocar a pasta mãe, vale a `Modelos` da pasta nova (ela é criada lá). Leve seus modelos junto.
+
 ## Trocar a pasta mãe
 
 Por padrão os projetos ficam em `~/Trabalho`. Para usar outra pasta (um HD externo, por exemplo):
@@ -90,19 +118,11 @@ O GNOME não mostra ícones de bandeja sem uma extensão (o Ubuntu já vem com e
 
 No GNOME o clique esquerdo na bolinha abre o menu, e a pasta do projeto abre por **Abrir pasta do projeto**. No KDE o clique esquerdo já abre a pasta. A bandeja é opcional: os atalhos de teclado funcionam sem ela.
 
-## Uso
-
-1. Aperte o atalho do cliente, ou clique na bolinha e escolha o cliente.
-2. Digite o nome de um projeto novo e aperte `Enter`, ou use `↓` para escolher um antigo e aperte `Enter`.
-3. Tudo que você baixar vai para o projeto ativo.
-
-Bolinha cinza: nenhum projeto ativo. Verde: projeto ativo.
-
 ## Perguntas
 
-**Ele apaga arquivos?** Nunca. Só move downloads e cria ou remove os atalhos.
+**Ele apaga arquivos?** Nunca. Só move os downloads, copia os modelos e cria ou remove os atalhos de pasta.
 
-**E se eu esquecer o monitor ligado?** Sem downloads por 3 horas ele desliga sozinho e remove os atalhos. Se o PC reiniciar com um projeto ativo, a bandeja limpa os atalhos que sobraram (só links, nunca arquivos).
+**E se eu esquecer o monitor ligado?** Sem downloads por 3 horas ele desliga sozinho e remove os atalhos de pasta. Se o PC reiniciar com um projeto ativo, a bandeja limpa os atalhos de pasta que sobraram (só links, nunca arquivos).
 
 **Qual pasta de downloads ele vigia?** A configurada no sistema, mesmo em outro idioma.
 
@@ -124,18 +144,25 @@ Tudo que o programa coloca no seu computador, para você saber onde está cada c
 | `~/.local/share/applications/` | `local.organizador.dialogo.desktop` | Dá nome e ícone à janela no GNOME (só estético) |
 | `/tmp/organizador-<número>/` | `monitor.pid`, `projeto`, `notificacao`, `bandeja.lock` | Bilhetes temporários entre as peças. Somem ao reiniciar o PC |
 | `~/.config/` | `organizador.conf` | Guarda a pasta mãe escolhida. Só existe se você trocar a pasta |
-| Pasta mãe (`~/Trabalho/` por padrão) | `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT`, `📂 ARQUIVOS BRUTOS` | Atalhos que só existem enquanto um projeto está ativo |
+| Pasta mãe (`~/Trabalho/` por padrão) | `📦 BRUTOS`, `✅ FINAIS`, `🛠️ PROJETOS` | Atalhos de pasta que só existem enquanto um projeto está ativo |
+| Pasta mãe (`~/Trabalho/` por padrão) | `Modelos/` | Seus modelos de projeto. É você quem coloca os arquivos |
 
 Fora disso:
 
-- **Seus projetos** (as pastas dentro de `~/Trabalho/`) são o seu trabalho, não arquivos do programa. Nunca são apagados.
+- **Seus projetos e a pasta `Modelos`** (dentro de `~/Trabalho/`) são o seu trabalho, não arquivos do programa. Nunca são apagados.
 - **Na pasta de onde você instalou** ficam o `instalar.sh`, o `README.md` e as cópias originais dos arquivos. Depois de instalar dá para apagar, mas guarde se quiser reinstalar ou atualizar.
 - **Programas do sistema** instalados pelo `instalar.sh` (como `inotify-tools` e `python-pyqt6`) ficam no sistema, não em pastas suas. No GNOME, a extensão AppIndicator também fica no sistema.
 
 ## Desinstalar
 
-1. Pare o monitoramento e feche a bolinha (menu da bolinha → **Parar monitoramento**, depois **Sair da bandeja**).
-2. Rode no terminal:
+1. Pare o monitoramento e feche a bolinha. Pelo menu da bolinha: **Parar monitoramento** e depois **Sair da bandeja**. Se a bolinha não aparece (GNOME sem a extensão), rode no terminal:
+
+   ```bash
+   ~/.local/bin/organizador.sh parar
+   pkill -f organizador_tray.py
+   ```
+
+2. Apague os arquivos do programa. Rode no terminal:
 
    ```bash
    rm ~/.local/bin/organizador*
@@ -145,4 +172,8 @@ Fora disso:
    rm -rf /tmp/organizador-*
    ```
 
-Seus projetos continuam na pasta mãe. Se sobrar algum atalho `🛠️ SALVAR PROJETO`, `✅ SALVAR EXPORT` ou `📂 ARQUIVOS BRUTOS` nela, pode apagar: são só links.
+3. Apague os atalhos de teclado que você criou (`Ctrl+1`, `Ctrl+2`, `Ctrl+3` e `Ctrl+'`). O programa não consegue removê-los, e eles ficariam apontando para um arquivo que não existe mais. Apague pelas configurações de teclado, no mesmo lugar onde você os criou. No KDE, não apague os arquivos `.desktop` soltos: apague pelo menu de atalhos, que o KDE limpa o resto.
+
+4. Opcional: os programas que o `instalar.sh` pediu ao sistema (`inotify-tools`, `python-pyqt6` e, no GNOME, `libadwaita`, `python-gobject` e a extensão AppIndicator) ficam instalados. Outros programas costumam usar alguns deles, então só remova se tiver certeza, pelo gerenciador de pacotes da sua distro.
+
+Seus projetos e a pasta `Modelos` continuam na pasta mãe. Se sobrar algum atalho de pasta (`📦 BRUTOS`, `✅ FINAIS` ou `🛠️ PROJETOS`, ou os nomes antigos `📂 ARQUIVOS BRUTOS`, `✅ SALVAR EXPORT` e `🛠️ SALVAR PROJETO`) nela, pode apagar: são só links.

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Uso: organizador.sh {1|2|3|parar}
-# Move os downloads para a pasta do projeto ativo dentro de ~/Trabalho.
+# Cria o projeto do cliente na pasta mãe (~/Trabalho por padrão), copia os modelos
+# e move os downloads para a 01_Brutos do projeto ativo.
 
 # Pasta mãe dos projetos: ~/Trabalho, ou a escolhida no menu da bandeja (guardada no arquivo abaixo)
 CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/organizador.conf"
@@ -14,13 +15,18 @@ if [ -r "$CONFIG" ]; then
         PASTA_INDISPONIVEL="$PASTA_ESCOLHIDA"
     fi
 fi
+# Modelos de projeto: pasta "Modelos" dentro da pasta mãe (criada quando preciso)
+MODELOS="$TRABALHO/Modelos"
 ESTADO="/tmp/organizador-$UID"
 PID_FILE="$ESTADO/monitor.pid"
 INFO_FILE="$ESTADO/projeto"
 NOTIFY_FILE="$ESTADO/notificacao"
-ATALHO_PROJETO="$TRABALHO/🛠️ SALVAR PROJETO"
-ATALHO_EXPORT="$TRABALHO/✅ SALVAR EXPORT"
-ATALHO_BRUTOS="$TRABALHO/📂 ARQUIVOS BRUTOS"
+# Atalhos de pasta que aparecem na pasta mãe enquanto um projeto está ativo
+ATALHO_BRUTOS="$TRABALHO/📦 BRUTOS"
+ATALHO_FINAIS="$TRABALHO/✅ FINAIS"
+ATALHO_PROJETOS="$TRABALHO/🛠️ PROJETOS"
+# Nomes de versões anteriores: removidos se sobrarem (só se forem atalhos)
+ATALHOS_ANTIGOS=("$TRABALHO/📂 ARQUIVOS BRUTOS" "$TRABALHO/✅ SALVAR EXPORT" "$TRABALHO/🛠️ SALVAR PROJETO")
 TIMEOUT=10800
 IGNORAR='(/\.[^/]*|\.(crdownload|part|tmp|opdownload|download|aria2))$'
 AQUI="$(dirname "$(readlink -f "$0")")"
@@ -65,10 +71,14 @@ parar_monitor() {
 }
 
 remover_atalhos() {
-    rm -f "$ATALHO_PROJETO" "$ATALHO_EXPORT" "$ATALHO_BRUTOS"
+    local antigo
+    rm -f "$ATALHO_BRUTOS" "$ATALHO_FINAIS" "$ATALHO_PROJETOS"
+    for antigo in "${ATALHOS_ANTIGOS[@]}"; do
+        [ -L "$antigo" ] && rm -f "$antigo"
+    done
 }
 
-# Só cria o atalho se a pasta existir; projeto retomado nunca ganha pastas novas.
+# Só cria o atalho de pasta se a pasta existir; projeto retomado nunca ganha pastas novas.
 atalho() {
     [ -d "$1" ] && ln -snf "$1" "$2"
 }
@@ -84,6 +94,42 @@ mover() {
         fi
     fi
     mv -- "$DOWNLOADS/$nome" "$destino" 2>/dev/null
+}
+
+# Projeto novo: copia para a 02_Projetos tudo da pasta Modelos cujo nome contém o nome do cliente.
+# Caixa, acento e _ - . não importam. Arquivos e pastas inteiras; itens ocultos são ignorados.
+copiar_modelos() {
+    mkdir -p "$MODELOS" 2>/dev/null
+    [ -d "$MODELOS" ] && [ -d "$PROJETO/02_Projetos" ] || return 0
+    python3 - "$MODELOS" "$PROJETO/02_Projetos" "$CLIENTE" <<'PY' ||
+import re, shutil, sys, unicodedata
+from pathlib import Path
+
+def normalizar(texto):
+    texto = unicodedata.normalize("NFKD", texto).casefold()
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    return re.sub(r"[\W_]+", " ", texto).strip()
+
+origem, destino, cliente = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+chave = f" {normalizar(cliente)} "
+falhou = False
+for item in sorted(origem.iterdir()):
+    if item.name.startswith(".") or chave not in f" {normalizar(item.name)} ":
+        continue
+    alvo = destino / item.name
+    if alvo.exists():
+        continue
+    try:
+        if item.is_dir():
+            shutil.copytree(item, alvo, symlinks=True)
+        else:
+            shutil.copy2(item, alvo)
+    except OSError:
+        falhou = True
+sys.exit(1 if falhou else 0)
+PY
+        notificar -i dialog-warning "Modelos" "Não consegui copiar todos os modelos."
+    return 0
 }
 
 monitorar() {
@@ -175,6 +221,7 @@ case "$TIPO" in
         printf -v DATA '%(%y-%m-%d)T' -1
         PROJETO="$TRABALHO/$DATA - $CLIENTE - $VALOR"
         mkdir -p "$PROJETO"/{01_Brutos,02_Projetos,03_Exports}
+        copiar_modelos
         ;;
     EXISTENTE) PROJETO="$TRABALHO/$VALOR" ;;
     *) exit 0 ;;
@@ -187,9 +234,9 @@ DESTINO="$PROJETO"
 parar_monitor
 fechar_notificacao
 remover_atalhos
-atalho "$PROJETO/02_Projetos" "$ATALHO_PROJETO"
-atalho "$PROJETO/03_Exports" "$ATALHO_EXPORT"
 atalho "$DESTINO" "$ATALHO_BRUTOS"
+atalho "$PROJETO/03_Exports" "$ATALHO_FINAIS"
+atalho "$PROJETO/02_Projetos" "$ATALHO_PROJETOS"
 
 # Escrita atômica: a bandeja nunca lê o arquivo pela metade
 basename "$PROJETO" > "$INFO_FILE.tmp"
