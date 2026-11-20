@@ -127,11 +127,13 @@ class Janela(Adw.ApplicationWindow):
 
         self.retomar = None
         if projetos:
-            rolagem = Gtk.ScrolledWindow(propagate_natural_height=True, max_content_height=280)
-            rolagem.set_child(self.lista)
+            self.rolagem = Gtk.ScrolledWindow(propagate_natural_height=True, max_content_height=280)
+            self.rolagem.set_child(self.lista)
             self.retomar = Adw.PreferencesGroup(title="Retomar projeto")
-            self.retomar.add(rolagem)
+            self.retomar.add(self.rolagem)
             corpo.append(self.retomar)
+            # Depois do primeiro desenho, trava a altura da lista: filtrar não encolhe mais a janela
+            self.rolagem.add_tick_callback(self.fixar_altura_lista)
 
         raiz = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         raiz.append(cabecalho)
@@ -142,6 +144,14 @@ class Janela(Adw.ApplicationWindow):
         esc.connect("key-pressed", self.ao_tecla_na_janela)
         self.add_controller(esc)
         self.campo.grab_focus()
+
+    def fixar_altura_lista(self, rolagem, _relogio):
+        altura = rolagem.get_height()
+        if altura <= 0:
+            return GLib.SOURCE_CONTINUE
+        rolagem.set_propagate_natural_height(False)
+        rolagem.set_min_content_height(altura)
+        return GLib.SOURCE_REMOVE
 
     def filtrar_linha(self, linha):
         return not self.termo_filtro or self.termo_filtro in self.chaves_busca.get(linha, "")
@@ -156,7 +166,8 @@ class Janela(Adw.ApplicationWindow):
         self.lista.invalidate_filter()
         if self.retomar is not None:
             alguma_visivel = any(self.filtrar_linha(linha) for linha in self.pastas)
-            self.retomar.set_visible(alguma_visivel)
+            # Opacidade em vez de esconder: o espaço continua reservado e a janela não muda de tamanho
+            self.retomar.set_opacity(1.0 if alguma_visivel else 0.0)
 
     def ao_selecionar(self, _, linha):
         if linha is not None and self.campo.get_text():

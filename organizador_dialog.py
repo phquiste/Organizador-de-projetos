@@ -143,6 +143,12 @@ def main():
     botoes.button(QDialogButtonBox.StandardButton.Cancel).setText("Cancelar")
 
     rotulo_retomar = QLabel("Retomar projeto")
+    # Sem resultados no filtro, o rótulo e a lista somem, mas continuam reservando o espaço deles:
+    # assim o campo de texto e os botões não saem do lugar.
+    for widget in (rotulo_retomar, lista):
+        politica = widget.sizePolicy()
+        politica.setRetainSizeWhenHidden(True)
+        widget.setSizePolicy(politica)
     layout = QVBoxLayout(dialogo)
     layout.setSpacing(8)
     layout.addWidget(QLabel("Novo projeto"))
